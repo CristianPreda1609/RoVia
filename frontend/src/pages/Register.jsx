@@ -48,52 +48,52 @@ function Register() {
     };
 
     return (
-        <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', fontFamily: 'Arial' }}>
+        <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', fontFamily: 'Arial', background: 'var(--bg)', color: 'var(--text)' }}>
             <h2>Înregistrare Cont Nou</h2>
 
-            {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-            {success && <div style={{ color: 'green', marginBottom: '10px' }}>{success}</div>}
+            {error && <div style={{ color: '#ef4444', marginBottom: '10px' }}>{error}</div>}
+            {success && <div style={{ color: '#10b981', marginBottom: '10px' }}>{success}</div>}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                    <label>Nume utilizator:</label>
+                    <label style={{ color: 'var(--text)' }}>Nume utilizator:</label>
                     <input 
                         type="text" 
                         name="username"
                         value={formData.username} 
                         onChange={handleChange} 
                         required 
-                        style={{ width: '100%', padding: '8px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
                     />
                 </div>
                 <div>
-                    <label>Email:</label>
+                    <label style={{ color: 'var(--text)' }}>Email:</label>
                     <input 
                         type="email" 
                         name="email"
                         value={formData.email} 
                         onChange={handleChange} 
                         required 
-                        style={{ width: '100%', padding: '8px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
                     />
                 </div>
                 <div>
-                    <label>Parolă:</label>
+                    <label style={{ color: 'var(--text)' }}>Parolă:</label>
                     <input 
                         type="password" 
                         name="password"
                         value={formData.password} 
                         onChange={handleChange} 
                         required 
-                        style={{ width: '100%', padding: '8px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
                     />
                 </div>
-                <button type="submit" style={{ padding: '10px', background: '#28a745', color: 'white', border: 'none', cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', borderRadius: 8 }}>
                     Creează Cont
                 </button>
             </form>
             
-            <p style={{ marginTop: '20px' }}>
+            <p style={{ marginTop: '20px', color: 'var(--muted)' }}>
                 Ai deja cont? <Link to="/login">Autentifică-te aici</Link>
             </p>
         </div>

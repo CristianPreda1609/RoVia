@@ -34,38 +34,38 @@ function Login() {
     };
 
     return (
-        <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', fontFamily: 'Arial' }}>
+        <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', fontFamily: 'Arial', background: 'var(--bg)', color: 'var(--text)' }}>
             <h2>Autentificare RoVia</h2>
-            
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            {success && <p style={{ color: 'green' }}>{success}</p>}
+
+            {error && <p style={{ color: '#ef4444' }}>{error}</p>}
+            {success && <p style={{ color: '#10b981' }}>{success}</p>}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                    <label>Email:</label><br />
+                    <label style={{ color: 'var(--text)' }}>Email:</label><br />
                     <input 
                         type="email" 
                         value={email} 
                         onChange={(e) => setEmail(e.target.value)} 
                         required 
-                        style={{ width: '100%', padding: '8px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
                     />
                 </div>
                 <div>
-                    <label>Parolă:</label><br />
+                    <label style={{ color: 'var(--text)' }}>Parolă:</label><br />
                     <input 
                         type="password" 
                         value={password} 
                         onChange={(e) => setPassword(e.target.value)} 
                         required 
-                        style={{ width: '100%', padding: '8px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
                     />
                 </div>
-                <button type="submit" style={{ padding: '10px', background: '#007bff', color: 'white', border: 'none', cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', borderRadius: 8 }}>
                     Intră în cont
                 </button>
             </form>
-            <p style={{ marginTop: '20px', textAlign: 'center' }}>
+            <p style={{ marginTop: '20px', textAlign: 'center', color: 'var(--muted)' }}>
             Nu ai cont? <Link to="/register">Înregistrează-te acum</Link>
             </p>
         </div>

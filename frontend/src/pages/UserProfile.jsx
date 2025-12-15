@@ -44,16 +44,16 @@ function UserProfile() {
     return (
         <div style={{ 
             minHeight: '100vh', 
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'var(--bg)',
             padding: '20px' 
         }}>
             {/* Header */}
             <div style={{
-                backgroundColor: 'white',
+                backgroundColor: 'var(--card-bg)',
                 borderRadius: '12px',
                 padding: '24px',
                 marginBottom: '24px',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
             }}>
                 <div style={{ 
                     display: 'flex', 
@@ -65,9 +65,9 @@ function UserProfile() {
                         onClick={() => navigate('/map')}
                         style={{
                             padding: '8px 16px',
-                            backgroundColor: '#f3f4f6',
-                            color: '#374151',
-                            border: '1px solid #d1d5db',
+                            backgroundColor: 'var(--topbar-bg)',
+                            color: 'var(--text)',
+                            border: '1px solid var(--border)',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'flex',
@@ -76,7 +76,7 @@ function UserProfile() {
                     >
                         ← Înapoi la hartă
                     </button>
-                    <h1 style={{ margin: 0, color: '#374151' }}>Profilul meu</h1>
+                    <h1 style={{ margin: 0, color: 'var(--text)' }}>Profilul meu</h1>
                     <div></div> {/* Spacer */}
                 </div>
 
@@ -88,7 +88,7 @@ function UserProfile() {
                     <div style={{
                         width: '80px',
                         height: '80px',
-                        backgroundColor: '#3b82f6',
+                        backgroundColor: 'var(--avatar-bg)',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -100,13 +100,13 @@ function UserProfile() {
                         {userInfo.name.charAt(0)}
                     </div>
                     <div>
-                        <h2 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+                        <h2 style={{ margin: '0 0 8px 0', color: 'var(--text)' }}>
                             {userInfo.name}
                         </h2>
-                        <p style={{ margin: '0 0 4px 0', color: '#6b7280' }}>
+                        <p style={{ margin: '0 0 4px 0', color: 'var(--muted)' }}>
                             📧 {userInfo.email}
                         </p>
-                        <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
+                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>
                             👤 Membru din {userInfo.joinDate}
                         </p>
                     </div>
@@ -121,49 +121,49 @@ function UserProfile() {
                 marginBottom: '24px'
             }}>
                 <div style={{
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--card-bg)',
                     borderRadius: '12px',
                     padding: '24px',
                     textAlign: 'center',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                 }}>
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>⭐</div>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#374151' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text)' }}>
                         {userInfo.favoriteAttractions}
                     </div>
-                    <div style={{ color: '#6b7280', fontSize: '14px' }}>
+                    <div style={{ color: 'var(--muted)', fontSize: '14px' }}>
                         Atracții favorite
                     </div>
                 </div>
 
                 <div style={{
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--card-bg)',
                     borderRadius: '12px',
                     padding: '24px',
                     textAlign: 'center',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                 }}>
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>📍</div>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#374151' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text)' }}>
                         {userInfo.visitedAttractions}
                     </div>
-                    <div style={{ color: '#6b7280', fontSize: '14px' }}>
+                    <div style={{ color: 'var(--muted)', fontSize: '14px' }}>
                         Atracții vizitate
                     </div>
                 </div>
 
                 <div style={{
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--card-bg)',
                     borderRadius: '12px',
                     padding: '24px',
                     textAlign: 'center',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                 }}>
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>🗺️</div>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#374151' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text)' }}>
                         Explorer
                     </div>
-                    <div style={{ color: '#6b7280', fontSize: '14px' }}>
+                    <div style={{ color: 'var(--muted)', fontSize: '14px' }}>
                         Nivel utilizator
                     </div>
                 </div>
@@ -171,10 +171,10 @@ function UserProfile() {
 
             {/* Acțiuni */}
             <div style={{
-                backgroundColor: 'white',
+                backgroundColor: 'var(--card-bg)',
                 borderRadius: '12px',
                 padding: '24px',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
             }}>
                 <h3 style={{ margin: '0 0 20px 0', color: '#374151' }}>
                     Acțiuni cont
@@ -185,7 +185,7 @@ function UserProfile() {
                         onClick={() => navigate('/map')}
                         style={{
                             padding: '12px 16px',
-                            backgroundColor: '#3b82f6',
+                            backgroundColor: 'var(--accent)',
                             color: 'white',
                             border: 'none',
                             borderRadius: '8px',
@@ -204,9 +204,9 @@ function UserProfile() {
                         onClick={() => alert('Funcționalitate în dezvoltare')}
                         style={{
                             padding: '12px 16px',
-                            backgroundColor: '#f3f4f6',
-                            color: '#374151',
-                            border: '1px solid #d1d5db',
+                            backgroundColor: 'var(--topbar-bg)',
+                            color: 'var(--text)',
+                            border: '1px solid var(--border)',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             textAlign: 'left',
@@ -223,9 +223,9 @@ function UserProfile() {
                         onClick={() => alert('Funcționalitate în dezvoltare')}
                         style={{
                             padding: '12px 16px',
-                            backgroundColor: '#f3f4f6',
-                            color: '#374151',
-                            border: '1px solid #d1d5db',
+                            backgroundColor: 'var(--topbar-bg)',
+                            color: 'var(--text)',
+                            border: '1px solid var(--border)',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             textAlign: 'left',

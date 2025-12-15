@@ -76,16 +76,16 @@ function Layout({ children }) {
                                 if (token) {
                                     // logged in -> show profile button
                                     return (
-                                        <button onClick={() => navigate('/profile')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6 }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3" stroke="#111827" strokeWidth="1.5"/><path d="M5.5 20a7 7 0 0113 0" stroke="#111827" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        <button onClick={() => navigate('/profile')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, color: 'var(--text)' }}>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M5.5 20a7 7 0 0113 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                         </button>
                                     );
                                 }
                             } catch (e) { /* ignore */ }
                             // not logged in -> show login shortcut
                             return (
-                                <button onClick={() => navigate('/login')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6 }}>
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M10 17l5-5-5-5" stroke="#111827" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 12h14" stroke="#111827" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                <button onClick={() => navigate('/login')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, color: 'var(--text)' }}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M10 17l5-5-5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 12h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                 </button>
                             );
                         })()}

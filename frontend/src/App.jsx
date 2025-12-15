@@ -7,6 +7,7 @@ import MapPage from './pages/MapPage';
 import UserProfile from "./pages/UserProfile";
 import QuizPage from './pages/QuizPage';
 import AttractionPage from './pages/AttractionPage';
+import Contact from './pages/Contact.jsx';
 
 function Leaderboard() {
   // simplu fallback: ar trebui înlocuit cu API call real
@@ -25,15 +26,7 @@ function Leaderboard() {
   );
 }
 
-function ContactPage() {
-  return (
-    <div style={{ padding: 24 }}>
-      <h2>Contact</h2>
-      <p>Dacă ai întrebări, scrie la: contact@rov ia.example</p>
-      {/* păstrează formular real pentru mai târziu */}
-    </div>
-  );
-}
+
 
 function App() {
     return (
@@ -49,7 +42,7 @@ function App() {
                     <Route path="/profile" element={<UserProfile />} />
                     <Route path="/quiz/:quizId" element={<QuizPage />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />
-                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/contact" element={<Contact />} />
                 </Routes>
             </Layout>
         </Router>
