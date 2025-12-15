@@ -4232,19 +4232,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Adriana\\.nuget\\packages\\": {}
+    "C:\\Users\\cowsmin\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Adriana\\Desktop\\RoVia\\backend\\RoVia.API\\RoVia.API.csproj",
+      "projectUniqueName": "C:\\Users\\cowsmin\\Downloads\\RoVia\\backend\\RoVia.API\\RoVia.API.csproj",
       "projectName": "RoVia.API",
-      "projectPath": "C:\\Users\\Adriana\\Desktop\\RoVia\\backend\\RoVia.API\\RoVia.API.csproj",
-      "packagesPath": "C:\\Users\\Adriana\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Adriana\\Desktop\\RoVia\\backend\\RoVia.API\\obj\\",
+      "projectPath": "C:\\Users\\cowsmin\\Downloads\\RoVia\\backend\\RoVia.API\\RoVia.API.csproj",
+      "packagesPath": "C:\\Users\\cowsmin\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\cowsmin\\Downloads\\RoVia\\backend\\RoVia.API\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Adriana\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\cowsmin\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"

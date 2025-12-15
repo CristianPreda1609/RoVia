@@ -1,0 +1,12 @@
+* {
+  transition: background-color 400ms ease, color 400ms ease, border-color 400ms ease;
+}
+
+/* Exclude certain elements from transition */
+input, textarea, button {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, transform 200ms ease !important;
+}
+
+html, body {
+  transition: background-color 400ms ease;
+}
