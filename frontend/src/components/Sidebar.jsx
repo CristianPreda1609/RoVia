@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import useAuth, { emitAuthChange } from '../hooks/useAuth';
 
 const Icon = ({ name }) => {
   const icons = {
@@ -19,24 +20,18 @@ const Icon = ({ name }) => {
 export default function Sidebar({ isOpen, onToggle, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const auth = useAuth();
 
   const handleLogout = () => {
     try { localStorage.removeItem('token'); } catch (e) { /* ignore */ }
+    emitAuthChange();
     if (onClose) onClose();
     navigate('/login');
   };
-
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  let isAuth = false, roleId = null;
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      isAuth = true;
-      roleId = payload.roleId ?? payload.RoleId ?? payload.role ?? null;
-    } catch (e) { isAuth = false; }
-  }
-  const isAdmin = Number(roleId) === 3;
-  const isPromoter = Number(roleId) === 2 || isAdmin;
+  const isAuth = auth.isAuthenticated;
+  const normalizedRole = (auth.role || 'Visitor').toString().toLowerCase();
+  const isAdmin = normalizedRole === 'administrator';
+  const isPromoter = normalizedRole === 'promoter' || isAdmin;
 
   const isActive = (path) => location.pathname === path ? 'var(--accent)' : 'transparent';
   const isActiveBg = (path) => location.pathname === path ? 'rgba(59, 130, 246, 0.1)' : 'transparent';
@@ -145,21 +140,29 @@ export default function Sidebar({ isOpen, onToggle, onClose }) {
             <div style={iconBoxStyle}>
               <Icon name="user" />
             </div>
-            {isOpen && <span style={{ fontSize: 14, fontWeight: 500 }}>Profil</span>}
+            {isOpen && (
+              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                {auth.username || 'Profil'}
+              </span>
+            )}
           </Link>
         )}
       </div>
 
       {/* Secțiune Admin/Promoter */}
-      {(isPromoter || isAdmin) && (
+      {(isAuth || isPromoter || isAdmin) && (
         <div style={{ padding: '16px 8px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {isOpen && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Management</span>}
-          {isPromoter && (
+          {isAuth && (
             <Link to="/dashboard" style={navItemStyle('/dashboard')}>
               <div style={iconBoxStyle}>
                 <Icon name="plus" />
               </div>
-              {isOpen && <span style={{ fontSize: 14, fontWeight: 500 }}>Adaugă Atracție</span>}
+              {isOpen && (
+                <span style={{ fontSize: 14, fontWeight: 500 }}>
+                  {isPromoter ? 'Promoter Hub' : 'Aplică Promotor'}
+                </span>
+              )}
             </Link>
           )}
           {isAdmin && (

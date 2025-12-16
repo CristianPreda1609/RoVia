@@ -1,17 +1,51 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { GoogleMap, Marker, InfoWindow, useLoadScript } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+
+const TYPE_LABELS = {
+    1: 'Naturală',
+    2: 'Culturală',
+    3: 'Istorică',
+    4: 'Distracție',
+    5: 'Religioasă'
+};
+
+const TYPE_OPTIONS = [
+    { value: '', label: 'Toate tipurile' },
+    ...Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))
+];
+
+const RATING_PRESETS = [
+    { value: '', label: 'Orice scor' },
+    { value: '3', label: 'Minim 3★' },
+    { value: '4', label: 'Minim 4★' },
+    { value: '4.5', label: 'Minim 4.5★' }
+];
+
+const SORT_OPTIONS = [
+    { value: 'rating', label: 'Scor' },
+    { value: 'name', label: 'Nume' },
+    { value: 'region', label: 'Regiune' }
+];
+
+const createEmptyFilters = () => ({
+    type: '',
+    region: '',
+    minRating: ''
+});
 
 export default function MapPage() {
     const navigate = useNavigate();
     const [attractions, setAttractions] = useState([]);
     const [selectedAttraction, setSelectedAttraction] = useState(null);
-    const [filters, setFilters] = useState({
-        type: '',
-        region: '',
-        minRating: ''
-    });
+    const [filters, setFilters] = useState(createEmptyFilters);
+    const [filtersDraft, setFiltersDraft] = useState(createEmptyFilters);
+    const [sortBy, setSortBy] = useState('rating');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [hasSearched, setHasSearched] = useState(false);
+    const [panelCollapsed, setPanelCollapsed] = useState(false);
+    const [catalog, setCatalog] = useState([]);
     const [loading, setLoading] = useState(true);
     const [mapError, setMapError] = useState(false);
     const [userName, setUserName] = useState('Demo User');
@@ -70,6 +104,56 @@ export default function MapPage() {
         fetchAttractions();
     }, [filters]);
 
+    const regionOptions = useMemo(() => {
+        const pool = (catalog.length ? catalog : attractions)
+            .map(a => (a.region || '').trim())
+            .filter(Boolean);
+        const unique = Array.from(new Set(pool));
+        return unique.sort((a, b) => a.localeCompare(b, 'ro'));
+    }, [catalog, attractions]);
+
+    const sortedAttractions = useMemo(() => {
+        const direction = sortOrder === 'asc' ? 1 : -1;
+        return [...attractions].sort((a, b) => {
+            if (sortBy === 'name') {
+                return direction * a.name.localeCompare(b.name, 'ro');
+            }
+            if (sortBy === 'region') {
+                const regionA = a.region || '';
+                const regionB = b.region || '';
+                return direction * regionA.localeCompare(regionB, 'ro');
+            }
+            const ratingDiff = a.rating - b.rating;
+            return direction * ratingDiff;
+        });
+    }, [attractions, sortBy, sortOrder]);
+
+    const appliedFiltersCount = useMemo(
+        () => Object.values(filters).filter(Boolean).length,
+        [filters]
+    );
+
+    const activeFilterChips = useMemo(() => {
+        const chips = [];
+        if (filters.type) {
+            const typeLabel = TYPE_LABELS[Number(filters.type)] || `Tip ${filters.type}`;
+            chips.push(typeLabel);
+        }
+        if (filters.region) {
+            chips.push(filters.region);
+        }
+        if (filters.minRating) {
+            chips.push(`≥ ${filters.minRating}★`);
+        }
+        return chips;
+    }, [filters]);
+
+    const hasPendingChanges = useMemo(() => (
+        filtersDraft.type !== filters.type ||
+        filtersDraft.region !== filters.region ||
+        filtersDraft.minRating !== filters.minRating
+    ), [filtersDraft, filters]);
+
     const fetchAttractions = async () => {
         try {
             setLoading(true);
@@ -81,6 +165,7 @@ export default function MapPage() {
 
             const response = await api.get(`/attractions?${params.toString()}`);
             setAttractions(response.data);
+            setCatalog(prev => (prev.length ? prev : response.data));
         } catch (error) {
             console.error('Eroare la încărcarea atracțiilor:', error);
             setAttractions([]);
@@ -88,6 +173,14 @@ export default function MapPage() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (!selectedAttraction) return;
+        const stillExists = attractions.some(a => a.id === selectedAttraction.id);
+        if (!stillExists) {
+            setSelectedAttraction(null);
+        }
+    }, [attractions, selectedAttraction]);
 
     const getDarkMapStyles = (dark) => {
         if (!dark) return [];
@@ -199,12 +292,54 @@ export default function MapPage() {
         ];
     };
 
-    const handleFilterChange = (e) => {
+    const handleDraftFilterChange = (e) => {
         const { name, value } = e.target;
-        setFilters(prev => ({
+        setFiltersDraft(prev => ({
             ...prev,
             [name]: value
         }));
+    };
+
+    const handleSortChange = (e) => {
+        setSortBy(e.target.value);
+    };
+
+    const toggleSortOrder = () => {
+        setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    };
+
+    const handleSearch = () => {
+        setFilters({ ...filtersDraft });
+        setSelectedAttraction(null);
+        setHasSearched(true);
+    };
+
+    const handleResetFilters = () => {
+        const reset = createEmptyFilters();
+        setFilters(reset);
+        setFiltersDraft(reset);
+        setSortBy('rating');
+        setSortOrder('desc');
+        setSelectedAttraction(null);
+        setHasSearched(false);
+    };
+
+    const focusAttraction = (attraction) => {
+        if (!attraction || !mapInstance?.panTo) return;
+        mapInstance.panTo({ lat: attraction.latitude, lng: attraction.longitude });
+        const canZoom = typeof mapInstance.getZoom === 'function' && typeof mapInstance.setZoom === 'function';
+        if (canZoom && mapInstance.getZoom() < 9) {
+            mapInstance.setZoom(9);
+        }
+    };
+
+    const handleCardSelect = (attraction) => {
+        setSelectedAttraction(attraction);
+        focusAttraction(attraction);
+    };
+
+    const togglePanelCollapsed = () => {
+        setPanelCollapsed(prev => !prev);
     };
 
     const toggleSidebar = () => {
@@ -221,6 +356,10 @@ export default function MapPage() {
         };
         return icons[type] || '📍';
     };
+
+    const formatRating = (value) => (value ?? 0).toFixed(1);
+
+    const resultsPanelHeight = 'min(540px, calc(100vh - var(--topbar-height, 80px) - 180px))';
 
     // Dacă nu avem API key, afișează mesaj de eroare
     if (mapError) {
@@ -270,7 +409,7 @@ export default function MapPage() {
                         {/* Lista atracțiilor fără hartă */}
                         <div style={{ marginTop: '24px' }}>
                             <h3 style={{ marginBottom: '16px', color: '#374151' }}>
-                                📍 Atracții disponibile ({attractions.length})
+                                📍 Atracții disponibile ({sortedAttractions.length})
                             </h3>
                             
                             {loading ? (
@@ -282,7 +421,7 @@ export default function MapPage() {
                                     maxHeight: '300px', 
                                     overflowY: 'auto' 
                                 }}>
-                                    {attractions.map(attraction => (
+                                    {sortedAttractions.map(attraction => (
                                         <div key={attraction.id} style={{
                                             backgroundColor: '#f9fafb',
                                             padding: '12px',
@@ -300,7 +439,7 @@ export default function MapPage() {
                                                     </strong>
                                                     <br />
                                                     <small style={{ color: '#6b7280' }}>
-                                                        📍 {attraction.region} • ⭐ {attraction.rating}/5
+                                                        📍 {attraction.region} • ⭐ {formatRating(attraction.rating)}
                                                     </small>
                                                 </div>
                                                 <button
@@ -338,7 +477,7 @@ export default function MapPage() {
                     zIndex: 20
                 }}>
                     <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
-                        📍 {attractions.length} atracții găsite
+                        📍 {sortedAttractions.length} atracții găsite
                     </p>
                 </div>
             </div>
@@ -476,7 +615,405 @@ export default function MapPage() {
     return (
         // NOTE: changed from height: '100vh' to minHeight calc to avoid total height > viewport (TopBar fixed)
         <div style={{ position: 'relative', overflow: 'hidden', height: 'calc(100vh - var(--topbar-height, 80px))' }}>
-            
+            <div
+                style={{
+                    position: 'fixed',
+                    top: 'calc(var(--topbar-height, 80px) + 16px)',
+                    left: 'calc(var(--sidebar-left, 0) + 24px)',
+                    width: 'min(460px, calc(100vw - 40px))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    alignItems: 'stretch',
+                    justifyContent: 'flex-start',
+                    maxHeight: 'calc(100vh - var(--topbar-height, 80px) - 32px)',
+                    zIndex: 30,
+                    pointerEvents: 'none'
+                }}
+            >
+                <div style={{ pointerEvents: 'auto', display: 'flex', justifyContent: 'flex-start' }}>
+                    <button
+                        type="button"
+                        onClick={togglePanelCollapsed}
+                        style={{
+                            border: '1px solid var(--border)',
+                            borderRadius: '999px',
+                            padding: '8px 16px',
+                            background: 'var(--card-bg)',
+                            color: 'var(--text)',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            boxShadow: '0 12px 24px rgba(15, 23, 42, 0.18)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'transform 180ms ease, box-shadow 180ms ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                            e.currentTarget.style.boxShadow = '0 16px 32px rgba(15, 23, 42, 0.25)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                            e.currentTarget.style.boxShadow = '0 12px 24px rgba(15, 23, 42, 0.18)';
+                        }}
+                    >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+                                <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                            </svg>
+                            Filtrare
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            {panelCollapsed ? 'Maximizează' : 'Minimizează'}
+                        </span>
+                    </button>
+                </div>
+
+                {!panelCollapsed && (
+                    <div
+                        style={{
+                            pointerEvents: 'auto',
+                            background: 'linear-gradient(135deg, rgba(15,23,42,0.82), rgba(30,64,175,0.78))',
+                            borderRadius: '18px',
+                            padding: '20px',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            color: 'white',
+                            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.35)'
+                        }}
+                    >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '13px', opacity: 0.8 }}>Salut, {userName}</p>
+                            <h2 style={{ margin: 0, fontSize: '20px' }}>Rafinare atracții</h2>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleResetFilters}
+                            style={{
+                                border: '1px solid rgba(255,255,255,0.4)',
+                                background: 'transparent',
+                                color: 'white',
+                                borderRadius: '999px',
+                                padding: '6px 14px',
+                                cursor: 'pointer',
+                                fontSize: '13px'
+                            }}
+                        >
+                            Resetează
+                        </button>
+                    </div>
+
+                    <div style={{ marginBottom: '12px' }}>
+                        {appliedFiltersCount ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {activeFilterChips.map(chip => (
+                                    <span
+                                        key={chip}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.15)',
+                                            borderRadius: '999px',
+                                            padding: '4px 12px',
+                                            fontSize: '12px'
+                                        }}
+                                    >
+                                        {chip}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p style={{ margin: 0, fontSize: '13px', opacity: 0.65 }}>
+                                {hasSearched ? 'Nu există filtre active' : 'Completează filtrele și apasă „Caută atracții”.'}
+                            </p>
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 500 }}>
+                            <span>Tip atracție</span>
+                            <select
+                                name="type"
+                                value={filtersDraft.type}
+                                onChange={handleDraftFilterChange}
+                                style={{
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(255,255,255,0.4)',
+                                    padding: '10px',
+                                    background: 'rgba(15,23,42,0.35)',
+                                    color: 'white'
+                                }}
+                            >
+                                {TYPE_OPTIONS.map(option => (
+                                    <option key={option.value || 'all'} value={option.value} style={{ color: '#111827' }}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 500 }}>
+                            <span>Regiune</span>
+                            <select
+                                name="region"
+                                value={filtersDraft.region}
+                                onChange={handleDraftFilterChange}
+                                style={{
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(255,255,255,0.4)',
+                                    padding: '10px',
+                                    background: 'rgba(15,23,42,0.35)',
+                                    color: 'white'
+                                }}
+                            >
+                                <option value="" style={{ color: '#111827' }}>Toate regiunile</option>
+                                {regionOptions.map(region => (
+                                    <option key={region} value={region} style={{ color: '#111827' }}>
+                                        {region}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 500 }}>
+                            <span>Rating minim</span>
+                            <select
+                                name="minRating"
+                                value={filtersDraft.minRating}
+                                onChange={handleDraftFilterChange}
+                                style={{
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(255,255,255,0.4)',
+                                    padding: '10px',
+                                    background: 'rgba(15,23,42,0.35)',
+                                    color: 'white'
+                                }}
+                            >
+                                {RATING_PRESETS.map(option => (
+                                    <option key={option.value || 'all'} value={option.value} style={{ color: '#111827' }}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <button
+                            type="button"
+                            onClick={handleSearch}
+                            disabled={loading}
+                            style={{
+                                borderRadius: '14px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #60a5fa, #2563eb)',
+                                color: 'white',
+                                padding: '12px 18px',
+                                fontSize: '15px',
+                                fontWeight: 600,
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                transition: 'transform 160ms ease, box-shadow 160ms ease',
+                                boxShadow: '0 12px 24px rgba(37, 99, 235, 0.35)',
+                                opacity: loading ? 0.65 : 1
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 16px 32px rgba(37, 99, 235, 0.45)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 12px 24px rgba(37, 99, 235, 0.35)';
+                            }}
+                        >
+                            Caută atracții
+                        </button>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.78)' }}>
+                            {!hasSearched
+                                ? 'Rezultatele vor apărea imediat ce pornești prima căutare.'
+                                : hasPendingChanges
+                                    ? 'Ai modificări neaplicate. Apasă din nou pe „Caută atracții”.'
+                                    : 'Rezultatele afișate sunt actualizate.'}
+                        </span>
+                    </div>
+                </div>
+                )}
+
+                {!panelCollapsed && !hasSearched && (
+                    <div
+                        style={{
+                            pointerEvents: 'auto',
+                            background: 'rgba(15,23,42,0.65)',
+                            borderRadius: '16px',
+                            padding: '18px',
+                            border: '1px dashed rgba(255,255,255,0.25)',
+                            color: 'white',
+                            fontSize: '14px'
+                        }}
+                    >
+                        Aplică filtrele dorite și folosește butonul „Caută atracții” pentru a deschide lista de rezultate.
+                    </div>
+                )}
+
+                {!panelCollapsed && hasSearched && (
+                    <div
+                        style={{
+                            pointerEvents: 'auto',
+                            background: 'var(--card-bg)',
+                            borderRadius: '18px',
+                            padding: '18px',
+                            border: '1px solid var(--border)',
+                            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.18)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                            height: resultsPanelHeight,
+                            minHeight: '320px',
+                            width: '100%',
+                            overflow: 'hidden'
+                        }}
+                    >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>Rezultate</p>
+                            <h3 style={{ margin: '4px 0 0 0', color: 'var(--text)' }}>{sortedAttractions.length} atracții</h3>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <select
+                                value={sortBy}
+                                onChange={handleSortChange}
+                                style={{
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border)',
+                                    padding: '8px',
+                                    background: 'var(--bg)',
+                                    color: 'var(--text)',
+                                    fontSize: '13px'
+                                }}
+                            >
+                                {SORT_OPTIONS.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={toggleSortOrder}
+                                style={{
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border)',
+                                    padding: '8px 12px',
+                                    background: 'var(--topbar-bg)',
+                                    color: 'var(--text)',
+                                    cursor: 'pointer',
+                                    fontSize: '13px'
+                                }}
+                            >
+                                {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                            paddingRight: '6px',
+                            flex: 1,
+                            scrollbarGutter: 'stable'
+                        }}
+                    >
+                        {sortedAttractions.length ? (
+                            sortedAttractions.map((attraction, index) => (
+                                <div
+                                    key={attraction.id}
+                                    onClick={() => handleCardSelect(attraction)}
+                                    style={{
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '14px',
+                                        padding: '12px',
+                                        display: 'flex',
+                                        gap: '12px',
+                                        cursor: 'pointer',
+                                        background: selectedAttraction?.id === attraction.id ? 'rgba(59,130,246,0.12)' : 'var(--topbar-bg)',
+                                        transition: 'all 200ms ease'
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '10px',
+                                        background: 'var(--bg)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 600,
+                                        color: 'var(--text)'
+                                    }}>
+                                        {index + 1}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                                                {getMarkerIcon(attraction.type)} {attraction.name}
+                                            </span>
+                                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent)' }}>
+                                                ⭐ {formatRating(attraction.rating)}
+                                            </span>
+                                        </div>
+                                        <p style={{ margin: '4px 0 8px 0', fontSize: '13px', color: 'var(--muted)' }}>
+                                            📍 {attraction.region || 'Regiune necunoscută'} • {TYPE_LABELS[Number(attraction.type)] || 'Tip necunoscut'}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/attractions/${attraction.id}`);
+                                                }}
+                                                style={{
+                                                    borderRadius: '8px',
+                                                    border: 'none',
+                                                    background: 'var(--accent)',
+                                                    color: 'white',
+                                                    padding: '8px 12px',
+                                                    fontSize: '13px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                Detalii
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCardSelect(attraction);
+                                                }}
+                                                style={{
+                                                    borderRadius: '8px',
+                                                    border: '1px solid var(--border)',
+                                                    background: 'var(--card-bg)',
+                                                    color: 'var(--text)',
+                                                    padding: '8px 12px',
+                                                    fontSize: '13px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                Marchează pe hartă
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p style={{ color: 'var(--muted)', margin: 0 }}>Nu există atracții care să respecte filtrele curente.</p>
+                        )}
+                    </div>
+                </div>
+                )}
+            </div>
+
             {/* Loading indicator - poziționat sub TopBar */}
             {loading && (
                 <div style={{
@@ -505,7 +1042,7 @@ export default function MapPage() {
                     center={{ lat: 45.9432, lng: 24.9668 }}
                     options={mapOptions}
                 >
-                    {attractions.map(attraction => (
+                    {sortedAttractions.map(attraction => (
                         <Marker
                             key={attraction.id}
                             position={{ lat: attraction.latitude, lng: attraction.longitude }}

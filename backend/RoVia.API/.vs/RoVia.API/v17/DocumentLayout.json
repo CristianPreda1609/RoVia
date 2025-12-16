@@ -3,12 +3,20 @@
   "WorkspaceRootPath": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\models\\quiz.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:models\\quiz.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\services\\jwtservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:services\\jwtservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -31,14 +39,6 @@
       "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:dtos\\registerrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\models\\quiz.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:models\\quiz.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|c:\\users\\cristi\\desktop\\proiect_ing_prog\\rovia\\backend\\rovia.api\\models\\attraction.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{E27E0103-46D5-4503-97C8-1EA0D3867C92}|RoVia.API.csproj|solutionrelative:models\\attraction.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -58,11 +58,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 8,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "appsettings.json",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\appsettings.json",
               "RelativeDocumentMoniker": "appsettings.json",
@@ -75,7 +75,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "AuthController.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "Controllers\\AuthController.cs",
@@ -83,12 +83,11 @@
               "RelativeToolTip": "Controllers\\AuthController.cs",
               "ViewState": "AgIAABgAAAAAAAAAAAAYwCMAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T19:03:35.166Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T19:03:35.166Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "JwtService.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Services\\JwtService.cs",
               "RelativeDocumentMoniker": "Services\\JwtService.cs",
@@ -101,7 +100,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "AuthResponse.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Data\\AuthResponse.cs",
               "RelativeDocumentMoniker": "Data\\AuthResponse.cs",
@@ -109,12 +108,11 @@
               "RelativeToolTip": "Data\\AuthResponse.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T19:01:03.884Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T19:01:03.884Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "LoginRequest.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\DTOs\\LoginRequest.cs",
               "RelativeDocumentMoniker": "DTOs\\LoginRequest.cs",
@@ -122,12 +120,11 @@
               "RelativeToolTip": "DTOs\\LoginRequest.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T19:00:53.66Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T19:00:53.66Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "RegisterRequest.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\DTOs\\RegisterRequest.cs",
               "RelativeDocumentMoniker": "DTOs\\RegisterRequest.cs",
@@ -135,12 +132,11 @@
               "RelativeToolTip": "DTOs\\RegisterRequest.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T19:00:37.221Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T19:00:37.221Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "Program.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Program.cs",
               "RelativeDocumentMoniker": "Program.cs",
@@ -148,12 +144,11 @@
               "RelativeToolTip": "Program.cs",
               "ViewState": "AgIAACcAAAAAAAAAAAAAADwAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T18:31:41.889Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T18:31:41.889Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 1,
               "Title": "AppDbContext.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Data\\AppDbContext.cs",
               "RelativeDocumentMoniker": "Data\\AppDbContext.cs",
@@ -166,13 +161,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 0,
               "Title": "Quiz.cs",
               "DocumentMoniker": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Models\\Quiz.cs",
               "RelativeDocumentMoniker": "Models\\Quiz.cs",
               "ToolTip": "C:\\Users\\Cristi\\Desktop\\proiect_ing_prog\\RoVia\\backend\\RoVia.API\\Models\\Quiz.cs",
               "RelativeToolTip": "Models\\Quiz.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAcAAAAAAAAAAAA5wAkAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-12-13T18:30:46.11Z",
               "EditorCaption": ""
@@ -187,8 +182,7 @@
               "RelativeToolTip": "Models\\Attraction.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T18:30:29.824Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T18:30:29.824Z"
             },
             {
               "$type": "Document",
@@ -200,8 +194,7 @@
               "RelativeToolTip": "Models\\Role.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T18:29:40.005Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T18:29:40.005Z"
             },
             {
               "$type": "Document",
@@ -213,8 +206,7 @@
               "RelativeToolTip": "Models\\User.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-13T18:28:53.515Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-13T18:28:53.515Z"
             }
           ]
         }

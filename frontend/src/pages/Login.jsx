@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import api from '../services/api';
 import { useNavigate, Link } from 'react-router-dom';
+import { emitAuthChange } from '../hooks/useAuth';
 
 function Login() {
     const navigate = useNavigate();
@@ -23,6 +24,7 @@ function Login() {
             });
 
             localStorage.setItem('token', response.data.token);
+            emitAuthChange();
             setSuccess('Autentificare reușită!');
             
             setTimeout(() => {

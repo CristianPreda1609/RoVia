@@ -17,16 +17,20 @@ public class JwtService
 
     public string GenerateToken(User user)
     {
-        var claims = new[]
+        var roleName = user.Role?.Name ?? "Visitor";
+
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.RoleId.ToString())
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Role, roleName)
         };
 
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"])
-        );
+        var secret = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT:Key missing");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

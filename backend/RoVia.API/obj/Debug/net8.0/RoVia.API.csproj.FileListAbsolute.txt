@@ -131,7 +131,6 @@ C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\staticwebassets.build.json.cache
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\staticwebassets.development.json
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\staticwebassets.build.endpoints.json
-C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\RoVia.API.csproj.Up2Date
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\RoVia.API.dll
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\obj\Debug\net8.0\refint\RoVia.API.dll
@@ -422,3 +421,5 @@ C:\Users\Adriana\Desktop\RoVia\backend\RoVia.API\obj\Debug\net8.0\refint\RoVia.A
 C:\Users\Adriana\Desktop\RoVia\backend\RoVia.API\obj\Debug\net8.0\RoVia.API.pdb
 C:\Users\Adriana\Desktop\RoVia\backend\RoVia.API\obj\Debug\net8.0\RoVia.API.genruntimeconfig.cache
 C:\Users\Adriana\Desktop\RoVia\backend\RoVia.API\obj\Debug\net8.0\ref\RoVia.API.dll
+C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\bin\Debug\net8.0\package-lock.json
+C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\bin\Debug\net8.0\package.json

@@ -61,6 +61,9 @@ namespace RoVia.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -68,6 +71,9 @@ namespace RoVia.API.Migrations
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
 
                     b.Property<double>("Latitude")
                         .HasColumnType("float");
@@ -94,7 +100,86 @@ namespace RoVia.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.ToTable("Attractions");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.AttractionSuggestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminResponse")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("AttractionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CreatesNewAttraction")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PromoterId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProposedDescription")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProposedImageUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("ProposedLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("ProposedLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("ProposedName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProposedRegion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ProposedType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ReviewedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttractionId");
+
+                    b.HasIndex("PromoterId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.ToTable("AttractionSuggestions");
                 });
 
             modelBuilder.Entity("RoVia.API.Models.Badge", b =>
@@ -127,6 +212,58 @@ namespace RoVia.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Badges");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.PromoterApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminNotes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompanyWebsite")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactEmail")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Motivation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ReviewedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PromoterApplications");
                 });
 
             modelBuilder.Entity("RoVia.API.Models.Question", b =>
@@ -174,12 +311,18 @@ namespace RoVia.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("DifficultyLevel")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
 
                     b.Property<int>("TimeLimit")
                         .HasColumnType("int");
@@ -192,7 +335,43 @@ namespace RoVia.API.Migrations
 
                     b.HasIndex("AttractionId");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.ToTable("Quizzes");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.Role", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Roles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Visitor"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Promoter"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Administrator"
+                        });
                 });
 
             modelBuilder.Entity("RoVia.API.Models.User", b =>
@@ -225,6 +404,8 @@ namespace RoVia.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
 
                     b.ToTable("Users");
                 });
@@ -307,6 +488,59 @@ namespace RoVia.API.Migrations
                     b.Navigation("Question");
                 });
 
+            modelBuilder.Entity("RoVia.API.Models.Attraction", b =>
+                {
+                    b.HasOne("RoVia.API.Models.User", "CreatedByUser")
+                        .WithMany("CreatedAttractions")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.AttractionSuggestion", b =>
+                {
+                    b.HasOne("RoVia.API.Models.Attraction", "Attraction")
+                        .WithMany("Suggestions")
+                        .HasForeignKey("AttractionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("RoVia.API.Models.User", "Promoter")
+                        .WithMany("AttractionSuggestions")
+                        .HasForeignKey("PromoterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RoVia.API.Models.User", "ReviewedBy")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Attraction");
+
+                    b.Navigation("Promoter");
+
+                    b.Navigation("ReviewedBy");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.PromoterApplication", b =>
+                {
+                    b.HasOne("RoVia.API.Models.User", "ReviewedBy")
+                        .WithMany("ReviewedApplications")
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("RoVia.API.Models.User", "User")
+                        .WithMany("PromoterApplications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReviewedBy");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("RoVia.API.Models.Question", b =>
                 {
                     b.HasOne("RoVia.API.Models.Quiz", "Quiz")
@@ -326,7 +560,25 @@ namespace RoVia.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("RoVia.API.Models.User", "CreatedByUser")
+                        .WithMany("Quizzes")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Attraction");
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.User", b =>
+                {
+                    b.HasOne("RoVia.API.Models.Role", "Role")
+                        .WithMany("Users")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("RoVia.API.Models.UserBadge", b =>
@@ -367,6 +619,11 @@ namespace RoVia.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RoVia.API.Models.Attraction", b =>
+                {
+                    b.Navigation("Suggestions");
+                });
+
             modelBuilder.Entity("RoVia.API.Models.Badge", b =>
                 {
                     b.Navigation("UserBadges");
@@ -380,6 +637,24 @@ namespace RoVia.API.Migrations
             modelBuilder.Entity("RoVia.API.Models.Quiz", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.Role", b =>
+                {
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("RoVia.API.Models.User", b =>
+                {
+                    b.Navigation("AttractionSuggestions");
+
+                    b.Navigation("CreatedAttractions");
+
+                    b.Navigation("PromoterApplications");
+
+                    b.Navigation("Quizzes");
+
+                    b.Navigation("ReviewedApplications");
                 });
 #pragma warning restore 612, 618
         }

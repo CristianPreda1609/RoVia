@@ -9,9 +9,12 @@ public class Quiz
     public int DifficultyLevel { get; set; } // 1-Easy, 2-Medium, 3-Hard
     public int TimeLimit { get; set; } // in seconds
     public DateTime CreatedAt { get; set; }
+    public int? CreatedByUserId { get; set; }
+    public bool IsApproved { get; set; } = true;
     
     // Navigation
     public Attraction Attraction { get; set; }
+    public User CreatedByUser { get; set; }
     public ICollection<Question> Questions { get; set; } = new List<Question>();
 }
 
