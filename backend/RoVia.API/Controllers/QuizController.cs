@@ -23,6 +23,23 @@ public class QuizController : ControllerBase
         _profileService = profileService;
     }
 
+    private int ResolveUserId()
+    {
+        var nameId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(nameId) && int.TryParse(nameId, out var parsed))
+        {
+            return parsed;
+        }
+
+        var sub = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (!string.IsNullOrEmpty(sub) && int.TryParse(sub, out var sid))
+        {
+            return sid;
+        }
+
+        return 0;
+    }
+
     // GET: lista quiz-uri pentru o atracție
     [AllowAnonymous]
     [HttpGet("attraction/{attractionId}")]
@@ -97,21 +114,58 @@ public class QuizController : ControllerBase
         });
     }
 
+    [Authorize(Roles = "Promoter,Administrator")]
+    [HttpGet("{quizId}/manage")]
+    public async Task<IActionResult> GetQuizForManagement(int quizId)
+    {
+        int userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var quiz = await _quizService.GetQuizForManagementAsync(quizId, userId, User.IsInRole("Administrator"));
+            if (quiz == null) return NotFound();
+
+            return Ok(new
+            {
+                quiz.Id,
+                quiz.AttractionId,
+                quiz.Title,
+                quiz.Description,
+                quiz.DifficultyLevel,
+                quiz.TimeLimit,
+                Questions = quiz.Questions
+                    .OrderBy(q => q.Order)
+                    .Select(q => new
+                    {
+                        q.Id,
+                        q.Text,
+                        q.PointsValue,
+                        q.Order,
+                        Answers = q.Answers
+                            .OrderBy(a => a.Order)
+                            .Select(a => new
+                            {
+                                a.Id,
+                                a.Text,
+                                a.IsCorrect,
+                                a.Order
+                            })
+                    })
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            return Forbid();
+        }
+    }
+
     // POST: submit quiz răspunsuri (protejat)
     [Authorize]
     [HttpPost("{quizId}/submit")]
     public async Task<IActionResult> SubmitQuiz(int quizId, [FromBody] Dictionary<int, int> answers)
     {
-        // Citire user id din token - încercămClaimTypes.NameIdentifier sau sub
-        int userId = 0;
-        var nameId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrEmpty(nameId) && int.TryParse(nameId, out var nid)) userId = nid;
-        else
-        {
-            var sub = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-            if (!string.IsNullOrEmpty(sub) && int.TryParse(sub, out var sid)) userId = sid;
-        }
-
+        int userId = ResolveUserId();
         if (userId == 0) return Unauthorized();
 
         var submissionResult = await _quizService.SubmitQuizAsync(userId, quizId, answers);
@@ -119,6 +173,73 @@ public class QuizController : ControllerBase
         await _profileService.CheckAndUnlockBadgesAsync(userId);
 
         return Ok(submissionResult);
+    }
+
+    [Authorize(Roles = "Promoter,Administrator")]
+    [HttpPost]
+    public async Task<IActionResult> CreateQuiz([FromBody] QuizCreateRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        int userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var quiz = await _quizService.CreateQuizAsync(userId, request, User.IsInRole("Administrator"));
+            if (quiz == null) return NotFound(new { message = "Atracția nu există." });
+            return Ok(new { quiz.Id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Roles = "Promoter,Administrator")]
+    [HttpPut("{quizId}")]
+    public async Task<IActionResult> UpdateQuiz(int quizId, [FromBody] QuizUpdateRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        int userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var quiz = await _quizService.UpdateQuizAsync(quizId, request, userId, User.IsInRole("Administrator"));
+            if (quiz == null) return NotFound();
+            return Ok(new { quiz.Id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Roles = "Promoter,Administrator")]
+    [HttpDelete("{quizId}")]
+    public async Task<IActionResult> DeleteQuiz(int quizId)
+    {
+        int userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var success = await _quizService.DeleteQuizAsync(quizId, userId, User.IsInRole("Administrator"));
+            if (!success) return NotFound();
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     private static string ResolveQuestionType(Question question)

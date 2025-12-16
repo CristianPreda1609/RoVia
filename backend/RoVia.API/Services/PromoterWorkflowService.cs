@@ -153,6 +153,21 @@ public class PromoterWorkflowService
         };
     }
 
+    public async Task<List<OwnedAttractionDto>> GetOwnedAttractionsAsync(int promoterId)
+    {
+        return await _context.Attractions
+            .Where(a => a.CreatedByUserId == promoterId)
+            .OrderByDescending(a => a.UpdatedAt)
+            .Select(a => new OwnedAttractionDto
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Region = a.Region,
+                IsApproved = a.IsApproved
+            })
+            .ToListAsync();
+    }
+
     private static PromoterApplicationResponse MapApplication(PromoterApplication application) => new()
     {
         Id = application.Id,

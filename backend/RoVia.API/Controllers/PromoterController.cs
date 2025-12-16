@@ -98,6 +98,17 @@ public class PromoterController : ControllerBase
         return Ok(summary);
     }
 
+    [Authorize(Roles = "Promoter")]
+    [HttpGet("attractions")]
+    public async Task<IActionResult> GetOwnedAttractions()
+    {
+        var userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        var attractions = await _promoterService.GetOwnedAttractionsAsync(userId);
+        return Ok(attractions);
+    }
+
     private int ResolveUserId()
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);

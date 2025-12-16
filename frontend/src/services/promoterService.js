@@ -31,6 +31,35 @@ const promoterService = {
       params: status ? { status } : undefined,
     });
     return data;
+  },
+
+  async getOwnedAttractions() {
+    const { data } = await api.get('/promoter/attractions');
+    return data;
+  },
+
+  async getQuizzesForAttraction(attractionId) {
+    const { data } = await api.get(`/quiz/attraction/${attractionId}`);
+    return data;
+  },
+
+  async getQuizDetails(quizId) {
+    const { data } = await api.get(`/quiz/${quizId}/manage`);
+    return data;
+  },
+
+  async createQuiz(payload) {
+    const { data } = await api.post('/quiz', payload);
+    return data;
+  },
+
+  async updateQuiz(id, payload) {
+    const { data } = await api.put(`/quiz/${id}`, payload);
+    return data;
+  },
+
+  async deleteQuiz(id) {
+    await api.delete(`/quiz/${id}`);
   }
 };
 

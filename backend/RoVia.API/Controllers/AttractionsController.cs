@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RoVia.API.Data;
 using RoVia.API.DTOs;
 using RoVia.API.Models;
+using System.Security.Claims;
 
 namespace RoVia.API.Controllers;
 
@@ -15,6 +17,12 @@ public class AttractionsController : ControllerBase
     public AttractionsController(AppDbContext context)
     {
         _context = context;
+    }
+
+    private int ResolveUserId()
+    {
+        var raw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(raw, out var id) ? id : 0;
     }
 
     [HttpGet]
@@ -76,5 +84,80 @@ public class AttractionsController : ControllerBase
             return NotFound();
 
         return Ok(attraction);
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPost]
+    public async Task<IActionResult> CreateAttraction([FromBody] AttractionUpsertRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var attraction = new Attraction
+        {
+            Name = request.Name,
+            Description = request.Description,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            Type = request.Type,
+            Region = request.Region,
+            ImageUrl = request.ImageUrl,
+            Rating = request.Rating,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedByUserId = ResolveUserId(),
+            IsApproved = true
+        };
+
+        _context.Attractions.Add(attraction);
+        await _context.SaveChangesAsync();
+        return Ok(new { attraction.Id });
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateAttraction(int id, [FromBody] AttractionUpsertRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var attraction = await _context.Attractions.FirstOrDefaultAsync(a => a.Id == id);
+        if (attraction == null)
+        {
+            return NotFound();
+        }
+
+        attraction.Name = request.Name;
+        attraction.Description = request.Description;
+        attraction.Latitude = request.Latitude;
+        attraction.Longitude = request.Longitude;
+        attraction.Type = request.Type;
+        attraction.Region = request.Region;
+        attraction.ImageUrl = request.ImageUrl;
+        attraction.Rating = request.Rating;
+        attraction.UpdatedAt = DateTime.UtcNow;
+        attraction.IsApproved = true;
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteAttraction(int id)
+    {
+        var attraction = await _context.Attractions.FirstOrDefaultAsync(a => a.Id == id);
+        if (attraction == null)
+        {
+            return NotFound();
+        }
+
+        _context.Attractions.Remove(attraction);
+        await _context.SaveChangesAsync();
+        return NoContent();
     }
 }
