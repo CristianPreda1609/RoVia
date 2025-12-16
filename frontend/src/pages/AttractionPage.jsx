@@ -139,6 +139,12 @@ function AttractionPage() {
     const currentQuestion = quizDetails?.questions?.[currentQuestionIndex];
     const isLastQuestion = quizDetails ? currentQuestionIndex === quizDetails.questions.length - 1 : false;
     const isCurrentAnswered = currentQuestion ? Boolean(answers[currentQuestion.id]) : false;
+    const basePointsTotal = quizDetails?.questions?.reduce((sum, q) => sum + (q.pointsValue || 0), 0) || 0;
+    const difficultyMultiplier = quizDetails?.difficultyLevel || 1;
+    const maxPointsForQuiz = quizDetails ? (quizDetails.maxPoints ?? basePointsTotal * difficultyMultiplier) : 0;
+    const questionsServed = quizDetails?.attemptQuestions ?? quizDetails?.AttemptQuestions ?? quizDetails?.questions?.length ?? 0;
+    const questionPoolSize = quizDetails?.questionPoolSize ?? quizDetails?.QuestionPoolSize ?? quizDetails?.questions?.length ?? 0;
+    const currentQuestionTypeLabel = currentQuestion?.questionType === 'true_false' ? 'Adevărat / Fals' : 'Răspuns multiplu';
 
     const handleNextQuestion = () => {
         if (!isCurrentAnswered || !quizDetails) return;
@@ -199,6 +205,16 @@ function AttractionPage() {
                                             <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
                                                 {quiz.questionsCount} întrebări • {Math.floor(quiz.timeLimit / 60)} min
                                             </div>
+                                            {quiz.questionPoolSize ? (
+                                                <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+                                                    🎲 Random din {quiz.questionPoolSize} întrebări
+                                                </div>
+                                            ) : null}
+                                            {quiz.maxPoints ? (
+                                                <div style={{ fontSize: '12px', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
+                                                    🏅 Până la {quiz.maxPoints} puncte
+                                                </div>
+                                            ) : null}
                                             <button
                                                 onClick={() => handleStartQuiz(quiz)}
                                                 style={{ marginTop: '8px', padding: '8px 16px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
@@ -228,12 +244,38 @@ function AttractionPage() {
                                 {activeQuiz.title}
                             </h2>
 
+                            {quizDetails && (
+                                <div style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '12px',
+                                    marginBottom: '16px',
+                                    fontSize: '13px',
+                                    color: 'var(--accent)',
+                                    fontWeight: 600
+                                }}>
+                                    <span>🏅 Punctaj maxim: {maxPointsForQuiz}p</span>
+                                    <span>🔥 Dificultate x{difficultyMultiplier}</span>
+                                    <span>⚖️ Puncte bază: {basePointsTotal}p</span>
+                                    <span>🎲 {questionsServed} întrebări random din {questionPoolSize}</span>
+                                </div>
+                            )}
+
                             {quizSubmitted && result ? (
                                 // Rezultat
-                                <div style={{ textAlign: 'center', padding: '24px', backgroundColor: '#dcfce7', borderRadius: '8px' }}>
+                                <div style={{ textAlign: 'center', padding: '24px', backgroundColor: '#dcfce7', borderRadius: '12px', border: '1px solid #86efac' }}>
                                     <h3 style={{ color: '#166534', margin: '0 0 12px 0' }}>🎉 Quiz finalizat!</h3>
-                                    <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534', margin: 0 }}>
-                                        +{result.pointsEarned} puncte
+                                    <p style={{ fontSize: '26px', fontWeight: 'bold', color: '#166534', margin: '0 0 8px 0' }}>
+                                        {result.pointsEarned} / {result.maxPoints} puncte
+                                    </p>
+                                    <p style={{ margin: '0 0 4px 0', color: '#166534', fontWeight: 600 }}>
+                                        Răspunsuri corecte: {result.correctAnswers} din {result.totalQuestions}
+                                    </p>
+                                    <p style={{ margin: '0 0 4px 0', color: '#166534', fontSize: '13px' }}>
+                                        Pool: {result.totalQuestions} / {result.questionPoolSize} întrebări servite
+                                    </p>
+                                    <p style={{ margin: 0, color: '#15803d', fontSize: '13px' }}>
+                                        Multiplicator dificultate x{result.difficultyMultiplier} • Puncte de bază: {result.basePoints}
                                     </p>
                                 </div>
                             ) : quizDetails && currentQuestion ? (
@@ -253,33 +295,61 @@ function AttractionPage() {
                                         <h4 style={{ margin: '0 0 12px 0', color: 'var(--text)', fontSize: '16px' }}>
                                             {currentQuestion.text}
                                         </h4>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {currentQuestion.answers.map(a => (
-                                                <label
-                                                    key={a.id}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        padding: '10px',
-                                                        background: answers[currentQuestion.id] === a.id ? 'rgba(59,130,246,0.08)' : 'transparent',
-                                                        border: answers[currentQuestion.id] === a.id ? '2px solid var(--accent)' : '1px solid var(--border)',
-                                                        borderRadius: '6px',
-                                                        cursor: quizSubmitted ? 'not-allowed' : 'pointer'
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="radio"
-                                                        name={`q_${currentQuestion.id}`}
-                                                        value={a.id}
-                                                        checked={answers[currentQuestion.id] === a.id}
-                                                        onChange={() => handleAnswerSelect(currentQuestion.id, a.id)}
-                                                        style={{ marginRight: '10px' }}
-                                                        disabled={quizSubmitted}
-                                                    />
-                                                    <span style={{ color: 'var(--text)' }}>{a.text}</span>
-                                                </label>
-                                            ))}
-                                        </div>
+                                        <p style={{ margin: '0 0 10px 0', color: 'var(--muted)', fontSize: '13px' }}>Tip întrebare: {currentQuestionTypeLabel}</p>
+                                        {currentQuestion.questionType === 'true_false' ? (
+                                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                {currentQuestion.answers.map(a => {
+                                                    const isSelected = answers[currentQuestion.id] === a.id;
+                                                    return (
+                                                        <button
+                                                            key={a.id}
+                                                            onClick={() => handleAnswerSelect(currentQuestion.id, a.id)}
+                                                            disabled={quizSubmitted}
+                                                            style={{
+                                                                flex: '1 1 140px',
+                                                                padding: '12px',
+                                                                borderRadius: '10px',
+                                                                border: isSelected ? '2px solid #10b981' : '1px solid var(--border)',
+                                                                backgroundColor: isSelected ? '#dcfce7' : 'var(--card-bg)',
+                                                                color: 'var(--text)',
+                                                                fontWeight: 600,
+                                                                cursor: quizSubmitted ? 'not-allowed' : 'pointer'
+                                                            }}
+                                                        >
+                                                            {a.text}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {currentQuestion.answers.map(a => (
+                                                    <label
+                                                        key={a.id}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            padding: '10px',
+                                                            background: answers[currentQuestion.id] === a.id ? 'rgba(59,130,246,0.08)' : 'transparent',
+                                                            border: answers[currentQuestion.id] === a.id ? '2px solid var(--accent)' : '1px solid var(--border)',
+                                                            borderRadius: '6px',
+                                                            cursor: quizSubmitted ? 'not-allowed' : 'pointer'
+                                                        }}
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            name={`q_${currentQuestion.id}`}
+                                                            value={a.id}
+                                                            checked={answers[currentQuestion.id] === a.id}
+                                                            onChange={() => handleAnswerSelect(currentQuestion.id, a.id)}
+                                                            style={{ marginRight: '10px' }}
+                                                            disabled={quizSubmitted}
+                                                        />
+                                                        <span style={{ color: 'var(--text)' }}>{a.text}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
                                         {!quizSubmitted && (
                                             <button
                                                 onClick={isLastQuestion ? handleSubmitQuiz : handleNextQuestion}

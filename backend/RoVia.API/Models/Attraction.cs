@@ -13,6 +13,12 @@ public class Attraction
     public double Rating { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public int? CreatedByUserId { get; set; }
+    public bool IsApproved { get; set; } = true;
+
+    // Navigation
+    public User CreatedByUser { get; set; }
+    public ICollection<AttractionSuggestion> Suggestions { get; set; } = new List<AttractionSuggestion>();
 }
 
 public enum AttractionType

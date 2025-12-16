@@ -14,9 +14,12 @@ function QuizDisplay({ quiz, onStartQuiz }) {
             <p style={{ margin: '0 0 12px 0', color: '#6b7280', fontSize: '14px' }}>
                 {quiz.description}
             </p>
-            <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#9ca3af', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '12px', color: '#9ca3af', marginBottom: '12px' }}>
                 <span>⏱️ {Math.floor(quiz.timeLimit / 60)} min</span>
-                <span>❓ {quiz.questionsCount} întrebări</span>
+                <span>🎲 {quiz.questionsCount} întrebări random{quiz.questionPoolSize ? ` din ${quiz.questionPoolSize}` : ''}</span>
+                {quiz.maxPoints ? (
+                    <span>🏅 până la {quiz.maxPoints}p</span>
+                ) : null}
             </div>
             <button
                 onClick={onStartQuiz}

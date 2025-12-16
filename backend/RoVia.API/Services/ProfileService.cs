@@ -26,6 +26,12 @@ public class ProfileService
             .Where(ub => ub.UserId == userId)
             .Include(ub => ub.Badge)
             .ToListAsync();
+        var unlockedBadgeIds = badges.Select(b => b.BadgeId).ToHashSet();
+
+        var nextBadge = await _context.Badges
+            .Where(b => !unlockedBadgeIds.Contains(b.Id))
+            .OrderBy(b => b.RequiredPoints)
+            .FirstOrDefaultAsync();
 
         var recentProgress = await _context.UserProgresses
             .Where(up => up.UserId == userId)
@@ -35,12 +41,27 @@ public class ProfileService
             .ThenInclude(q => q.Attraction)
             .ToListAsync();
 
+        var levelInfo = CalculateLevel(user.TotalPoints);
+        var nextBadgeInfo = nextBadge == null ? null : new
+        {
+            nextBadge.Id,
+            nextBadge.Name,
+            nextBadge.Description,
+            nextBadge.IconUrl,
+            nextBadge.RequiredPoints,
+            PointsRemaining = Math.Max(0, nextBadge.RequiredPoints - user.TotalPoints)
+        };
+
         return new
         {
             user.Id,
             user.Username,
             user.Email,
             user.TotalPoints,
+            Level = levelInfo.Level,
+            LevelName = levelInfo.Name,
+            LevelProgress = levelInfo.Progress,
+            PointsToNextLevel = levelInfo.PointsToNextLevel,
             QuizzesCompleted = quizzesCompleted,
             Badges = badges.Select(b => new
             {
@@ -50,6 +71,7 @@ public class ProfileService
                 b.Badge.IconUrl,
                 UnlockedAt = b.UnlockedAt
             }),
+            NextBadge = nextBadgeInfo,
             RecentProgress = recentProgress.Select(p => new
             {
                 p.Quiz.Title,
@@ -105,5 +127,38 @@ public class ProfileService
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    private static LevelInfo CalculateLevel(int totalPoints)
+    {
+        const int pointsPerLevel = 250;
+        var level = Math.Max(1, (totalPoints / pointsPerLevel) + 1);
+        var currentLevelFloor = (level - 1) * pointsPerLevel;
+        var progressPoints = totalPoints - currentLevelFloor;
+        var progress = pointsPerLevel == 0 ? 0 : Math.Clamp((double)progressPoints / pointsPerLevel, 0, 1);
+        var nextLevelTarget = currentLevelFloor + pointsPerLevel;
+
+        return new LevelInfo
+        {
+            Level = level,
+            Name = level switch
+            {
+                1 => "Începător",
+                2 => "Explorer",
+                3 => "Călător",
+                4 => "Legendă",
+                _ => "Maestru"
+            },
+            Progress = Math.Round(progress, 3),
+            PointsToNextLevel = Math.Max(0, nextLevelTarget - totalPoints)
+        };
+    }
+
+    private sealed class LevelInfo
+    {
+        public int Level { get; init; }
+        public string Name { get; init; }
+        public double Progress { get; init; }
+        public int PointsToNextLevel { get; init; }
     }
 }

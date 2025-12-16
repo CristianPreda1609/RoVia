@@ -20,7 +20,9 @@ public class AttractionsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AttractionDto>>> GetAttractions([FromQuery] AttractionFilterRequest filter)
     {
-        var query = _context.Attractions.AsQueryable();
+        var query = _context.Attractions
+            .Where(a => a.IsApproved)
+            .AsQueryable();
 
         if (filter.Type.HasValue)
             query = query.Where(a => a.Type == filter.Type.Value);
@@ -54,7 +56,7 @@ public class AttractionsController : ControllerBase
     public async Task<ActionResult<AttractionDto>> GetAttraction(int id)
     {
         var attraction = await _context.Attractions
-            .Where(a => a.Id == id)
+            .Where(a => a.Id == id && a.IsApproved)
             .Select(a => new AttractionDto
             {
                 Id = a.Id,

@@ -1,4 +1,5 @@
 using RoVia.API.Data;
+using RoVia.API.DTOs;
 using RoVia.API.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,30 +32,41 @@ public class QuizService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<int> SubmitQuizAsync(int userId, int quizId, Dictionary<int, int> answers)
+    public async Task<QuizSubmissionResult?> SubmitQuizAsync(int userId, int quizId, Dictionary<int, int> answers)
     {
         var quiz = await GetQuizWithQuestionsAsync(quizId);
-        if (quiz == null) return 0;
+        if (quiz == null) return null;
+        if (answers == null || answers.Count == 0) return null;
+
+        var questions = quiz.Questions ?? new List<Question>();
+        var questionPoolSize = questions.Count;
+        var answeredQuestions = questions
+            .Where(q => answers.ContainsKey(q.Id))
+            .ToList();
+
+        if (!answeredQuestions.Any()) return null;
 
         int correctCount = 0;
-        int totalPoints = 0;
+        int earnedBasePoints = 0;
+        int potentialBasePoints = answeredQuestions.Sum(q => q.PointsValue);
 
-        foreach (var question in quiz.Questions)
+        foreach (var question in answeredQuestions)
         {
             if (answers.TryGetValue(question.Id, out int selectedAnswerId))
             {
-                var correctAnswer = question.Answers.FirstOrDefault(a => a.IsCorrect);
-                if (correctAnswer?.Id == selectedAnswerId)
+                var selectedAnswer = question.Answers.FirstOrDefault(a => a.Id == selectedAnswerId);
+                if (selectedAnswer?.IsCorrect == true)
                 {
                     correctCount++;
-                    totalPoints += question.PointsValue;
+                    earnedBasePoints += question.PointsValue;
                 }
             }
         }
 
         // Calcul final cu bonus pentru dificultate
-        int bonusMultiplier = quiz.DifficultyLevel;
-        int finalPoints = totalPoints * bonusMultiplier;
+        int multiplier = Math.Max(1, quiz.DifficultyLevel);
+        int finalPoints = earnedBasePoints * multiplier;
+        int maxPoints = potentialBasePoints * multiplier;
 
         // Salvare progres
         var userProgress = new UserProgress
@@ -63,7 +75,7 @@ public class QuizService
             QuizId = quizId,
             PointsEarned = finalPoints,
             CorrectAnswers = correctCount,
-            TotalQuestions = quiz.Questions.Count,
+            TotalQuestions = answeredQuestions.Count,
             IsCompleted = true,
             CompletedAt = DateTime.UtcNow,
             TimeSpentSeconds = 0
@@ -80,6 +92,16 @@ public class QuizService
         }
 
         await _context.SaveChangesAsync();
-        return finalPoints;
+
+        return new QuizSubmissionResult
+        {
+            PointsEarned = finalPoints,
+            BasePoints = earnedBasePoints,
+            DifficultyMultiplier = multiplier,
+            MaxPoints = maxPoints,
+            CorrectAnswers = correctCount,
+            TotalQuestions = answeredQuestions.Count,
+            QuestionPoolSize = questionPoolSize
+        };
     }
 }

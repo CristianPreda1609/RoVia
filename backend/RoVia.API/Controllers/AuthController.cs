@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RoVia.API.Data;
 using RoVia.API.DTOs;
 using RoVia.API.Models;
@@ -25,18 +26,21 @@ public class AuthController : ControllerBase
         if (_context.Users.Any(u => u.Email == request.Email))
             return BadRequest("Email already exists");
 
+        var visitorRole = _context.Roles.FirstOrDefault(r => r.Name == "Visitor") ?? _context.Roles.First();
+
         var user = new User
         {
             Username = request.Username,
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            RoleId = 1, // Turist
+            RoleId = visitorRole.Id,
             CreatedAt = DateTime.UtcNow
         };
 
         _context.Users.Add(user);
         _context.SaveChanges();
 
+        user.Role = visitorRole;
         var token = _jwtService.GenerateToken(user);
         return Ok(new AuthResponse { Token = token });
     }
@@ -44,7 +48,9 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public IActionResult Login(LoginRequest request)
     {
-        var user = _context.Users.FirstOrDefault(u => u.Email == request.Email);
+        var user = _context.Users
+            .Include(u => u.Role)
+            .FirstOrDefault(u => u.Email == request.Email);
         if (user == null)
             return Unauthorized();
 

@@ -1,29 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-function decodeJwt(token) {
-	if (!token) return null;
-	try {
-		const payload = token.split('.')[1];
-		const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-		const pad = base64.length % 4;
-		const padded = base64 + (pad ? '='.repeat(4 - pad) : '');
-		const json = JSON.parse(decodeURIComponent(escape(window.atob(padded))));
-		return json;
-	} catch {
-		return null;
-	}
-}
+import useAuth from '../hooks/useAuth';
 
 function TopBar({ onMenuToggle }) {
 	const navigate = useNavigate();
-	const username = useMemo(() => {
-		const stored = localStorage.getItem('username');
-		if (stored) return stored;
-		const token = localStorage.getItem('token');
-		const payload = decodeJwt(token);
-		return payload?.unique_name ?? payload?.name ?? payload?.email ?? payload?.sub ?? 'User';
-	}, []);
+	const auth = useAuth();
+	const username = useMemo(() => auth.username || 'Explorer', [auth.username]);
+	const roleLabel = useMemo(() => auth.role || 'Vizitator', [auth.role]);
 
 	const [dark, setDark] = useState(() => {
 		try {
@@ -66,6 +49,25 @@ function TopBar({ onMenuToggle }) {
 		}}>
 			{/* Left: Title */}
 			<div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+				<button
+					onClick={onMenuToggle}
+					aria-label="toggle sidebar"
+					style={{
+						width: 36,
+						height: 36,
+						borderRadius: 10,
+						border: '1px solid var(--border)',
+						background: 'var(--card-bg)',
+						cursor: 'pointer',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center'
+					}}
+				>
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+						<path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+					</svg>
+				</button>
 				<h1 style={{
 					fontSize: '16px',
 					fontWeight: '600',
@@ -163,51 +165,68 @@ function TopBar({ onMenuToggle }) {
 				</button>
 
 				{/* User info - click pentru profil */}
-				<div 
-					style={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: '12px',
-						cursor: 'pointer',
-						padding: '6px 12px',
-						borderRadius: '10px',
-						background: 'var(--card-bg)',
-						transition: 'all 200ms ease'
-					}}
-					onClick={() => navigate('/profile')}
-					onMouseEnter={(e) => { 
-						e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
-						e.currentTarget.style.transform = 'translateY(-2px)';
-					}}
-					onMouseLeave={(e) => { 
-						e.currentTarget.style.background = 'var(--card-bg)';
-						e.currentTarget.style.transform = 'translateY(0)';
-					}}
-				>
-					<div style={{ textAlign: 'right' }}>
-						<p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)', margin: 0, transition: 'color 400ms ease' }}>
-							{username}
-						</p>
-						<p style={{ fontSize: '11px', color: 'var(--muted)', margin: 0, transition: 'color 400ms ease' }}>
-							Explorer
-						</p>
+				{auth.isAuthenticated ? (
+					<div 
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '12px',
+							cursor: 'pointer',
+							padding: '6px 12px',
+							borderRadius: '10px',
+							background: 'var(--card-bg)',
+							transition: 'all 200ms ease'
+						}}
+						onClick={() => navigate('/profile')}
+						onMouseEnter={(e) => { 
+							e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+							e.currentTarget.style.transform = 'translateY(-2px)';
+						}}
+						onMouseLeave={(e) => { 
+							e.currentTarget.style.background = 'var(--card-bg)';
+							e.currentTarget.style.transform = 'translateY(0)';
+						}}
+					>
+						<div style={{ textAlign: 'right' }}>
+							<p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text)', margin: 0, transition: 'color 400ms ease' }}>
+								{username}
+							</p>
+							<p style={{ fontSize: '11px', color: 'var(--muted)', margin: 0, transition: 'color 400ms ease' }}>
+								{roleLabel}
+							</p>
+						</div>
+						<div style={{
+							width: '36px',
+							height: '36px',
+							backgroundColor: 'var(--accent)',
+							borderRadius: '50%',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							color: 'white',
+							fontWeight: 'bold',
+							fontSize: '14px',
+							transition: 'transform 200ms ease'
+						}}>
+							{(username && username[0])?.toUpperCase() ?? 'U'}
+						</div>
 					</div>
-					<div style={{
-						width: '36px',
-						height: '36px',
-						backgroundColor: 'var(--accent)',
-						borderRadius: '50%',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						color: 'white',
-						fontWeight: 'bold',
-						fontSize: '14px',
-						transition: 'transform 200ms ease'
-					}}>
-						{(username && username[0])?.toUpperCase() ?? 'U'}
-					</div>
-				</div>
+				) : (
+					<button
+						onClick={() => navigate('/login')}
+						style={{
+							padding: '10px 18px',
+							borderRadius: 12,
+							border: '1px solid var(--accent)',
+							background: 'transparent',
+							color: 'var(--accent)',
+							fontWeight: 600,
+							cursor: 'pointer'
+						}}
+					>
+						Autentificare
+					</button>
+				)}
 			</div>
 		</div>
 	);
