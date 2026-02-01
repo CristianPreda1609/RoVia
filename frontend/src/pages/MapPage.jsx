@@ -78,6 +78,19 @@ export default function MapPage() {
         }
     }, []);
 
+    // Ascunde butonul close implicit al InfoWindow pentru a păstra doar varianta custom
+    useEffect(() => {
+        const styleTag = document.createElement('style');
+        styleTag.setAttribute('data-map-close-style', 'true');
+        styleTag.textContent = '.gm-ui-hover-effect { display: none !important; }';
+        document.head.appendChild(styleTag);
+        return () => {
+            if (styleTag.parentNode) {
+                styleTag.parentNode.removeChild(styleTag);
+            }
+        };
+    }, []);
+
     // Listen for theme changes
     useEffect(() => {
         const checkTheme = () => {
