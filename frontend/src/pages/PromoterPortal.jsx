@@ -495,7 +495,7 @@ function PromoterPortal() {
     },
     {
       title: 'Aprobate până acum',
-      value: dashboardStats?.ApprovedSuggestions ?? 0,
+      value: dashboardStats?.ApprovedAttractions ?? dashboardStats?.ApprovedSuggestions ?? 0,
       accent: '#22c55e'
     },
     {

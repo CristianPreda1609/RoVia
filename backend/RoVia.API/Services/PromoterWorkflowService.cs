@@ -144,12 +144,15 @@ public class PromoterWorkflowService
             .CountAsync(s => s.PromoterId == promoterId && s.Status == SuggestionStatus.Pending);
         var approvedSuggestions = await _context.AttractionSuggestions
             .CountAsync(s => s.PromoterId == promoterId && s.Status == SuggestionStatus.Approved);
+        var approvedAttractions = await _context.Attractions
+            .CountAsync(a => a.CreatedByUserId == promoterId && a.IsApproved);
 
         return new
         {
             LatestApplication = latestApplication,
             PendingSuggestions = pendingSuggestions,
-            ApprovedSuggestions = approvedSuggestions
+            ApprovedSuggestions = approvedSuggestions,
+            ApprovedAttractions = approvedAttractions
         };
     }
 
