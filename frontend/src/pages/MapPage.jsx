@@ -410,13 +410,14 @@ export default function MapPage() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: '#f3f4f6'
+                    backgroundColor: 'var(--bg)'
                 }}>
                     <div style={{
-                        backgroundColor: 'white',
+                        backgroundColor: 'var(--card-bg)',
                         padding: '32px',
                         borderRadius: '12px',
-                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                        border: '1px solid var(--border)',
+                        boxShadow: 'var(--shadow-md)',
                         textAlign: 'center',
                         maxWidth: '500px'
                     }}>
@@ -446,12 +447,12 @@ export default function MapPage() {
 
                         {/* Lista atracțiilor fără hartă */}
                         <div style={{ marginTop: '24px' }}>
-                            <h3 style={{ marginBottom: '16px', color: '#374151' }}>
+                            <h3 style={{ marginBottom: '16px', color: 'var(--text)' }}>
                                 📍 Atracții disponibile ({sortedAttractions.length})
                             </h3>
                             
                             {loading ? (
-                                <p style={{ color: '#6b7280' }}>Se încarcă atracțiile...</p>
+                                <p style={{ color: 'var(--muted)' }}>Se încarcă atracțiile...</p>
                             ) : (
                                 <div style={{ 
                                     display: 'grid', 

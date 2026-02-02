@@ -109,6 +109,47 @@ public class PromoterController : ControllerBase
         return Ok(attractions);
     }
 
+    [Authorize(Roles = "Promoter")]
+    [HttpPut("attractions/{attractionId:int}")]
+    public async Task<IActionResult> UpdateOwnedAttraction(int attractionId, [FromBody] AttractionUpsertRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var success = await _promoterService.UpdateOwnedAttractionAsync(attractionId, userId, request);
+            if (!success) return NotFound();
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Forbid(ex.Message);
+        }
+    }
+
+    [Authorize(Roles = "Promoter")]
+    [HttpDelete("attractions/{attractionId:int}")]
+    public async Task<IActionResult> DeleteOwnedAttraction(int attractionId)
+    {
+        var userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        try
+        {
+            var success = await _promoterService.DeleteOwnedAttractionAsync(attractionId, userId);
+            if (!success) return NotFound();
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Forbid(ex.Message);
+        }
+    }
+
     private int ResolveUserId()
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);

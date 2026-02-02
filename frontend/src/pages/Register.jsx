@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import Button from '../components/Button';
+import { spacing } from '../constants/layout';
 
 function Register() {
     const navigate = useNavigate();
@@ -26,7 +28,6 @@ function Register() {
         setError('');
         setSuccess('');
 
-        // Validare parolă
         if (formData.password !== confirmPassword) {
             setError('Parolele nu se potrivesc!');
             return;
@@ -41,13 +42,11 @@ function Register() {
 
         try {
             await api.post('/auth/register', formData);
-            
             setSuccess('Cont creat cu succes! Te redirecționăm la login...');
-            
+
             setTimeout(() => {
                 navigate('/login');
             }, 2000);
-
         } catch (err) {
             console.error(err);
             if (err.response && err.response.data) {
@@ -63,144 +62,146 @@ function Register() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1a1f3a 50%, #0f172a 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
-            fontFamily: 'RoviaUI, Inter, system-ui'
+            padding: spacing.lg,
+            fontFamily: 'Inter, system-ui, -apple-system',
+            position: 'relative',
+            overflow: 'hidden'
         }}>
-            {/* Background decorative elements */}
             <div style={{
                 position: 'absolute',
-                top: '-80px',
-                right: '-80px',
-                width: '400px',
-                height: '400px',
-                background: 'rgba(255, 255, 255, 0.08)',
+                top: '-200px',
+                right: '-200px',
+                width: '600px',
+                height: '600px',
+                background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
                 borderRadius: '50%',
-                filter: 'blur(60px)'
-            }}></div>
+                filter: 'blur(60px)',
+                animation: 'float 20s ease-in-out infinite'
+            }} />
             <div style={{
                 position: 'absolute',
-                bottom: '-100px',
-                left: '-100px',
-                width: '350px',
-                height: '350px',
-                background: 'rgba(255, 255, 255, 0.05)',
+                bottom: '-200px',
+                left: '-200px',
+                width: '600px',
+                height: '600px',
+                background: 'radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, transparent 70%)',
                 borderRadius: '50%',
-                filter: 'blur(50px)'
-            }}></div>
+                filter: 'blur(60px)',
+                animation: 'float 25s ease-in-out infinite reverse'
+            }} />
 
-            {/* Main container */}
             <div style={{
                 background: 'var(--card-bg)',
-                borderRadius: '20px',
-                padding: '40px',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 1px rgba(59, 130, 246, 0.5)',
-                maxWidth: '420px',
+                borderRadius: '16px',
+                padding: '48px',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                maxWidth: '440px',
                 width: '100%',
                 border: '1px solid var(--border)',
-                backdropFilter: 'blur(10px)',
+                backdropFilter: 'blur(20px)',
                 position: 'relative',
                 zIndex: 10
             }}>
-                {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '36px' }}>
                     <div style={{
-                        fontSize: '48px',
+                        fontSize: '56px',
                         marginBottom: '16px',
-                        display: 'inline-block'
+                        display: 'inline-block',
+                        animation: 'float 3s ease-in-out infinite'
                     }}>
-                        🎯
+                        ✨
                     </div>
                     <h1 style={{
-                        margin: '0 0 8px 0',
-                        fontSize: '28px',
+                        margin: 0,
+                        fontSize: '30px',
                         fontWeight: '700',
                         color: 'var(--text)',
-                        letterSpacing: '-0.5px'
+                        letterSpacing: '-0.6px',
+                        marginBottom: '8px'
                     }}>
-                        Creează cont nou
+                        Creează cont
                     </h1>
                     <p style={{
                         margin: 0,
                         fontSize: '14px',
                         color: 'var(--muted)',
-                        fontWeight: '500'
+                        fontWeight: '400',
+                        letterSpacing: '0.3px'
                     }}>
                         Alătură-te comunității RoVia
                     </p>
                 </div>
 
-                {/* Error message */}
                 {error && (
                     <div style={{
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid #fecaca',
+                        background: 'var(--error-light)',
+                        border: '1px solid var(--error)',
                         borderRadius: '12px',
-                        padding: '12px 16px',
-                        marginBottom: '20px',
-                        color: '#dc2626',
+                        padding: `${spacing.md} ${spacing.lg}`,
+                        marginBottom: spacing.lg,
+                        color: 'var(--error)',
                         fontSize: '14px',
                         fontWeight: '500',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px'
+                        gap: '10px',
+                        animation: 'slideDown 300ms ease-out'
                     }}>
-                        <span>⚠️</span>
-                        {error}
+                        <span style={{ fontSize: '18px' }}>⚠️</span>
+                        <span>{error}</span>
                     </div>
                 )}
 
-                {/* Success message */}
                 {success && (
                     <div style={{
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        border: '1px solid #a7f3d0',
+                        background: 'var(--success-light)',
+                        border: '1px solid var(--success)',
                         borderRadius: '12px',
-                        padding: '12px 16px',
-                        marginBottom: '20px',
-                        color: '#059669',
+                        padding: `${spacing.md} ${spacing.lg}`,
+                        marginBottom: spacing.lg,
+                        color: 'var(--success)',
                         fontSize: '14px',
                         fontWeight: '500',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px'
+                        gap: '10px',
+                        animation: 'slideDown 300ms ease-out'
                     }}>
-                        <span>✓</span>
-                        {success}
+                        <span style={{ fontSize: '18px' }}>✓</span>
+                        <span>{success}</span>
                     </div>
                 )}
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Username field */}
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '13px',
                             fontWeight: '600',
                             color: 'var(--text)',
-                            marginBottom: '8px',
+                            marginBottom: spacing.sm,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
                         }}>
                             Nume utilizator
                         </label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             name="username"
-                            value={formData.username} 
-                            onChange={handleChange} 
-                            required 
-                            placeholder="John_Doe"
+                            value={formData.username}
+                            onChange={handleChange}
+                            placeholder="Ion_Popescu"
+                            required
                             style={{
                                 width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: '12px',
+                                padding: `${spacing.md} ${spacing.lg}`,
+                                borderRadius: '10px',
                                 border: '1px solid var(--border)',
-                                background: 'var(--topbar-bg)',
+                                background: 'var(--bg)',
                                 color: 'var(--text)',
                                 fontSize: '14px',
                                 fontFamily: 'inherit',
@@ -218,32 +219,31 @@ function Register() {
                         />
                     </div>
 
-                    {/* Email field */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '13px',
                             fontWeight: '600',
                             color: 'var(--text)',
-                            marginBottom: '8px',
+                            marginBottom: spacing.sm,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
                         }}>
                             Email
                         </label>
-                        <input 
-                            type="email" 
+                        <input
+                            type="email"
                             name="email"
-                            value={formData.email} 
-                            onChange={handleChange} 
-                            required 
-                            placeholder="exemplu@email.com"
+                            value={formData.email}
+                            onChange={handleChange}
+                            placeholder="ion@example.com"
+                            required
                             style={{
                                 width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: '12px',
+                                padding: `${spacing.md} ${spacing.lg}`,
+                                borderRadius: '10px',
                                 border: '1px solid var(--border)',
-                                background: 'var(--topbar-bg)',
+                                background: 'var(--bg)',
                                 color: 'var(--text)',
                                 fontSize: '14px',
                                 fontFamily: 'inherit',
@@ -261,32 +261,31 @@ function Register() {
                         />
                     </div>
 
-                    {/* Password field */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '13px',
                             fontWeight: '600',
                             color: 'var(--text)',
-                            marginBottom: '8px',
+                            marginBottom: spacing.sm,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
                         }}>
                             Parolă
                         </label>
-                        <input 
-                            type="password" 
+                        <input
+                            type="password"
                             name="password"
-                            value={formData.password} 
-                            onChange={handleChange} 
-                            required 
+                            value={formData.password}
+                            onChange={handleChange}
                             placeholder="••••••••"
+                            required
                             style={{
                                 width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: '12px',
+                                padding: `${spacing.md} ${spacing.lg}`,
+                                borderRadius: '10px',
                                 border: '1px solid var(--border)',
-                                background: 'var(--topbar-bg)',
+                                background: 'var(--bg)',
                                 color: 'var(--text)',
                                 fontSize: '14px',
                                 fontFamily: 'inherit',
@@ -304,31 +303,30 @@ function Register() {
                         />
                     </div>
 
-                    {/* Confirm Password field */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '13px',
                             fontWeight: '600',
                             color: 'var(--text)',
-                            marginBottom: '8px',
+                            marginBottom: spacing.sm,
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
                         }}>
                             Confirmă parola
                         </label>
-                        <input 
-                            type="password" 
-                            value={confirmPassword} 
-                            onChange={(e) => setConfirmPassword(e.target.value)} 
-                            required 
+                        <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
+                            required
                             style={{
                                 width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: '12px',
+                                padding: `${spacing.md} ${spacing.lg}`,
+                                borderRadius: '10px',
                                 border: '1px solid var(--border)',
-                                background: 'var(--topbar-bg)',
+                                background: 'var(--bg)',
                                 color: 'var(--text)',
                                 fontSize: '14px',
                                 fontFamily: 'inherit',
@@ -346,114 +344,56 @@ function Register() {
                         />
                     </div>
 
-                    {/* Submit button */}
-                    <button 
-                        type="submit" 
-                        disabled={loading}
+                    <Button
+                        type="primary"
+                        size="lg"
+                        loading={loading}
                         style={{
-                            padding: '14px 20px',
-                            background: 'linear-gradient(135deg, var(--accent) 0%, #3b82f6 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontWeight: '600',
+                            width: '100%',
+                            marginTop: spacing.md,
                             fontSize: '15px',
-                            marginTop: '8px',
-                            transition: 'all 200ms ease',
-                            opacity: loading ? 0.7 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            fontFamily: 'inherit'
-                        }}
-                        onMouseEnter={(e) => {
-                            if (!loading) {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
+                            fontWeight: '600',
+                            letterSpacing: '0.3px'
                         }}
                     >
-                        {loading ? (
-                            <>
-                                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
-                                Se creează...
-                            </>
-                        ) : (
-                            <>
-                                Creează cont
-                            </>
-                        )}
-                    </button>
+                        {loading ? 'Se încarcă...' : 'Creează cont'}
+                    </Button>
                 </form>
 
-                {/* Divider */}
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
-                    margin: '24px 0',
-                    color: 'var(--muted)'
+                    gap: spacing.lg,
+                    margin: `${spacing.xl} 0`,
+                    opacity: 0.5
                 }}>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
-                    <span style={{ fontSize: '13px', fontWeight: '500' }}>SAU</span>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                    <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: '500' }}>SAU</span>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
                 </div>
 
-                {/* Login link */}
                 <p style={{
-                    margin: 0,
                     textAlign: 'center',
-                    color: 'var(--muted)',
-                    fontSize: '14px'
+                    margin: 0,
+                    fontSize: '14px',
+                    color: 'var(--muted)'
                 }}>
                     Ai deja cont?{' '}
-                    <Link 
-                        to="/login" 
+                    <Link
+                        to="/login"
                         style={{
                             color: 'var(--accent)',
                             textDecoration: 'none',
                             fontWeight: '600',
-                            transition: 'all 200ms ease',
-                            borderBottom: '2px solid transparent',
-                            paddingBottom: '2px'
+                            transition: 'all 200ms ease'
                         }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.borderBottomColor = 'var(--accent)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.borderBottomColor = 'transparent';
-                        }}
+                        onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
                     >
-                        Autentifică-te acum
+                        Autentifică-te
                     </Link>
                 </p>
-
-                {/* Footer info */}
-                <div style={{
-                    marginTop: '24px',
-                    paddingTop: '20px',
-                    borderTop: '1px solid var(--border)',
-                    textAlign: 'center',
-                    fontSize: '12px',
-                    color: 'var(--muted)'
-                }}>
-                    🔒 Datele tale sunt protejate și criptate
-                </div>
             </div>
-
-            {/* Spin animation */}
-            <style>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }

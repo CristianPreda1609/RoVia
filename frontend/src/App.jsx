@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import MapPage from './pages/MapPage';
-import UserProfile from "./pages/UserProfile";
+import Profile from "./pages/Profile";
 import QuizPage from './pages/QuizPage';
 import AttractionPage from './pages/AttractionPage';
 import Contact from './pages/Contact.jsx';
 import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import RequireAuth from './components/RequireAuth';
+import Dashboard from './pages/Dashboard';
 import PromoterPortal from './pages/PromoterPortal';
 import AdminPanel from './pages/AdminPanel';
 import Leaderboard from './pages/Leaderboard';
@@ -45,25 +46,37 @@ function App() {
 					background: 'var(--bg)'
 				}}>
 					<Routes>
-						<Route path="/" element={<Navigate to="/map" />} />
+						<Route path="/" element={<Navigate to="/dashboard" />} />
 						<Route path="/login" element={<Login />} />
 						<Route path="/register" element={<Register />} />
+						
+						{/* User Dashboard */}
 						<Route
 							path="/dashboard"
+							element={
+								<RequireAuth>
+									<Dashboard />
+								</RequireAuth>
+							}
+						/>
+
+						{/* Promoter Portal */}
+						<Route
+							path="/promoter"
 							element={
 								<RequireAuth>
 									<PromoterPortal />
 								</RequireAuth>
 							}
 						/>
-						<Route path="/promoter" element={<Navigate to="/dashboard" replace />} />
+
 						<Route path="/map" element={<MapPage />} />
 						<Route path="/attractions/:id" element={<AttractionPage />} />
 						<Route
 							path="/profile"
 							element={
 								<RequireAuth>
-									<UserProfile />
+									<Profile />
 								</RequireAuth>
 							}
 						/>

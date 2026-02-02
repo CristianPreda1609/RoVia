@@ -96,235 +96,357 @@ function UserProfile() {
 
     if (loading) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
-                Se încarcă profilul...
+            <div style={{ 
+                minHeight: 'calc(100vh - 56px)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'var(--bg)',
+                color: 'var(--muted)'
+            }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>⟳</div>
+                    <p>Se încarcă profilul...</p>
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
-                {error}
+            <div style={{ 
+                minHeight: 'calc(100vh - 56px)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'var(--bg)',
+                color: 'var(--error)'
+            }}>
+                ⚠️ {error}
             </div>
         );
     }
 
-    if (!profile) {
-        return null;
-    }
+    if (!profile) return null;
 
     const voucherSpentPoints = calculateSpentPoints(voucherRedemptions);
     const availablePoints = Math.max(0, (profile.totalPoints ?? 0) - voucherSpentPoints);
     const initials = profile.name?.charAt(0)?.toUpperCase() ?? '?';
     const progressPercent = Math.round((profile.levelProgress || 0) * 100);
-    const badgesUnlocked = profile.badges.length;
 
     return (
-        <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', padding: '20px' }}>
-            {/* Header */}
-            <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 10px 30px rgba(15,23,42,0.06)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                    <button onClick={() => navigate('/map')} style={{ padding: '8px 16px', backgroundColor: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '999px', cursor: 'pointer', fontWeight: 600 }}>
-                        ← Înapoi la hartă
-                    </button>
-                    <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: '999px', cursor: 'pointer', fontWeight: 600 }}>
-                        Log out
-                    </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                    <div style={{ width: '96px', height: '96px', borderRadius: '24px', background: 'linear-gradient(135deg, #3b82f6, #9333ea)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', fontWeight: 700 }}>
+        <div style={{
+            minHeight: 'calc(100vh - 56px)',
+            backgroundColor: 'var(--bg)',
+            paddingLeft: '80px',
+            paddingTop: '24px',
+            paddingBottom: '40px',
+            color: 'var(--text)'
+        }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+                {/* HEADER */}
+                <div style={{
+                    background: `linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)`,
+                    borderRadius: '16px',
+                    padding: '40px',
+                    marginBottom: '32px',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '32px',
+                    boxShadow: 'var(--shadow-lg)'
+                }}>
+                    <div style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '20px',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '48px',
+                        fontWeight: '800',
+                        border: '3px solid rgba(255, 255, 255, 0.3)'
+                    }}>
                         {initials}
                     </div>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px', letterSpacing: '0.08em' }}>PROFIL UTILIZATOR</p>
-                        <h1 style={{ margin: '8px 0', color: 'var(--text)', fontSize: '32px' }}>{profile.name}</h1>
-                        <p style={{ margin: 0, color: 'var(--muted)' }}>📧 {profile.email}</p>
+
+                    <div style={{ flex: 1 }}>
+                        <h1 style={{ fontSize: '32px', fontWeight: '800', margin: '0 0 8px 0' }}>
+                            {profile.name}
+                        </h1>
+                        <p style={{ margin: '0 0 16px 0', opacity: 0.95 }}>
+                            📧 {profile.email} • {profile.levelName} #{profile.level}
+                        </p>
+                        <div style={{
+                            display: 'flex',
+                            gap: '20px',
+                            fontSize: '14px'
+                        }}>
+                            <span>⭐ {profile.totalPoints} puncte</span>
+                            <span>❓ {profile.quizzesCompleted} quiz-uri</span>
+                            <span>🏅 {profile.badges.length} insigne</span>
+                        </div>
                     </div>
-                    <div style={{ textAlign: 'right', minWidth: '200px' }}>
-                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>PUNCTE DISPONIBILE</p>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '36px', fontWeight: 'bold', color: '#16a34a' }}>{availablePoints}</p>
-                        {voucherSpentPoints > 0 && (
-                            <p style={{ margin: '4px 0 0 0', color: '#ca8a04', fontSize: '12px' }}>+{voucherSpentPoints}p rezervate în vouchere</p>
+
+                    <div style={{ textAlign: 'right' }}>
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                color: 'white',
+                                padding: '10px 20px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: '600',
+                                marginBottom: '8px',
+                                display: 'block',
+                                width: '100%'
+                            }}
+                        >
+                            Dashboard
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.15)',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                color: 'white',
+                                padding: '10px 20px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: '600',
+                                width: '100%'
+                            }}
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
+
+                {/* STATS GRID */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '20px',
+                    marginBottom: '32px'
+                }}>
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 200ms ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>⭐</div>
+                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>Puncte Disponibile</p>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'var(--accent)' }}>{availablePoints}</p>
+                    </div>
+
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 200ms ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>🎁</div>
+                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>Puncte Rezervate</p>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'var(--secondary)' }}>{voucherSpentPoints}</p>
+                    </div>
+
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 200ms ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>🏆</div>
+                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>Nivelul</p>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'var(--tertiary)' }}>{profile.levelName}</p>
+                    </div>
+
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 200ms ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>🏅</div>
+                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>Insigne</p>
+                        <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'var(--warning)' }}>{profile.badges.length}</p>
+                    </div>
+                </div>
+
+                {/* PROGRESS SECTION */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr',
+                    gap: '20px',
+                    marginBottom: '32px'
+                }}>
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        boxShadow: 'var(--shadow-sm)'
+                    }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 16px 0' }}>
+                            Progres Nivel
+                        </h2>
+                        <div style={{
+                            width: '100%',
+                            height: '12px',
+                            background: 'var(--bg)',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            marginBottom: '12px'
+                        }}>
+                            <div style={{
+                                width: `${progressPercent}%`,
+                                height: '100%',
+                                background: `linear-gradient(90deg, var(--accent), var(--secondary))`,
+                                transition: 'width 300ms ease',
+                                borderRadius: '6px'
+                            }}></div>
+                        </div>
+                        <p style={{
+                            margin: 0,
+                            color: 'var(--muted)',
+                            fontSize: '13px'
+                        }}>
+                            {progressPercent}% complet • {profile.pointsToNextLevel} puncte până la nivelul următor
+                        </p>
+                    </div>
+
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        boxShadow: 'var(--shadow-sm)'
+                    }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 16px 0' }}>
+                            Următoarea Insignă
+                        </h2>
+                        {profile.nextBadge ? (
+                            <div>
+                                <p style={{ margin: 0, fontSize: '32px', marginBottom: '8px' }}>
+                                    {profile.nextBadge.icon}
+                                </p>
+                                <p style={{ margin: 0, fontWeight: '600', marginBottom: '4px' }}>
+                                    {profile.nextBadge.name}
+                                </p>
+                                <p style={{
+                                    margin: 0,
+                                    color: 'var(--muted)',
+                                    fontSize: '12px',
+                                    marginBottom: '8px'
+                                }}>
+                                    {profile.nextBadge.description}
+                                </p>
+                                <p style={{
+                                    margin: 0,
+                                    color: 'var(--success)',
+                                    fontWeight: '600',
+                                    fontSize: '13px'
+                                }}>
+                                    +{Math.max(0, profile.nextBadge.pointsRemaining)}p
+                                </p>
+                            </div>
+                        ) : (
+                            <p style={{ margin: 0, color: 'var(--muted)' }}>
+                                Ai obținut toate insignele! 🎉
+                            </p>
                         )}
-                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>Nivel: {profile.levelName} #{profile.level}</p>
                     </div>
                 </div>
-            </div>
 
-            {/* Statistici */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                {[{
-                    label: 'Puncte disponibile',
-                    value: availablePoints,
-                    icon: '🏆',
-                    accent: '#fef3c7'
-                }, {
-                    label: 'Puncte rezervate',
-                    value: voucherSpentPoints,
-                    icon: '🎁',
-                    accent: '#fef9c3'
-                }, {
-                    label: 'Quiz-uri completate',
-                    value: profile.quizzesCompleted,
-                    icon: '🎯',
-                    accent: '#e0f2fe'
-                }, {
-                    label: 'Insigne deblocate',
-                    value: badgesUnlocked,
-                    icon: '🎖️',
-                    accent: '#ede9fe'
-                }, {
-                    label: 'Puncte până la următorul nivel',
-                    value: profile.pointsToNextLevel,
-                    icon: '🚀',
-                    accent: '#dcfce7'
-                }].map((card, idx) => (
-                    <div key={idx} style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border)' }}>
-                        <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: card.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', fontSize: '20px' }}>
-                            {card.icon}
-                        </div>
-                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '13px' }}>{card.label}</p>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '28px', fontWeight: '700', color: 'var(--text)' }}>{card.value}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* Progres nivel + următoarea insignă */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '24px', border: '1px solid var(--border)' }}>
-                    <h3 style={{ margin: '0 0 12px 0', color: 'var(--text)' }}>Progres nivel</h3>
-                    <p style={{ margin: '0 0 16px 0', color: 'var(--muted)' }}>Ești la nivelul <strong>{profile.levelName}</strong>. Continuă să strângi puncte pentru nivelul următor.</p>
-                    <div style={{ height: '14px', borderRadius: '999px', backgroundColor: 'var(--border)', overflow: 'hidden' }}>
-                        <div style={{ width: `${progressPercent}%`, background: 'linear-gradient(90deg, #3b82f6, #06b6d4)', height: '100%' }}></div>
-                    </div>
-                    <p style={{ marginTop: '8px', color: 'var(--muted)', fontSize: '13px' }}>{progressPercent}% complet • {profile.pointsToNextLevel}p până la nivelul următor</p>
-                </div>
-                <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '24px', border: '1px solid var(--border)' }}>
-                    <h3 style={{ margin: '0 0 12px 0', color: 'var(--text)' }}>Următoarea insignă</h3>
-                    {profile.nextBadge ? (
-                        <div>
-                            <p style={{ margin: 0, fontSize: '28px' }}>{profile.nextBadge.icon}</p>
-                            <p style={{ margin: '8px 0 4px 0', fontWeight: 600 }}>{profile.nextBadge.name}</p>
-                            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>{profile.nextBadge.description}</p>
-                            <p style={{ marginTop: '8px', color: '#10b981', fontWeight: 600 }}>Îți lipsesc {Math.max(0, profile.nextBadge.pointsRemaining)} puncte</p>
-                        </div>
-                    ) : (
-                        <p style={{ margin: 0, color: 'var(--muted)' }}>Ai obținut toate insignele disponibile. Super!</p>
-                    )}
-                </div>
-            </div>
-
-            {/* Progres recent și insigne */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '24px', border: '1px solid var(--border)' }}>
-                    <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)' }}>Progres recent</h3>
-                    {profile.recentProgress.length === 0 ? (
-                        <p style={{ color: 'var(--muted)' }}>Încă nu ai completat niciun quiz.</p>
-                    ) : (
+                {/* RECENT PROGRESS */}
+                {profile.recentProgress.length > 0 && (
+                    <div style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        boxShadow: 'var(--shadow-sm)'
+                    }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 16px 0' }}>
+                            Progres Recent
+                        </h2>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {profile.recentProgress.map((item, idx) => (
-                                <div
-                                    key={`${item.title}-${idx}`}
-                                    style={{
-                                        padding: '12px',
-                                        borderRadius: '12px',
-                                        border: '1px solid var(--border)',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        flexWrap: 'wrap',
-                                        gap: '12px'
-                                    }}
-                                >
+                            {profile.recentProgress.slice(0, 5).map((item, idx) => (
+                                <div key={idx} style={{
+                                    padding: '12px',
+                                    background: 'var(--bg)',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
                                     <div>
-                                        <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{item.title}</p>
-                                        <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '13px' }}>
-                                            📍 {item.attraction || 'Atracție'} • {item.completedAt ? new Date(item.completedAt).toLocaleDateString('ro-RO') : 'În curs'}
-                                        </p>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <p style={{ margin: 0, fontWeight: 700, color: '#10b981' }}>+{item.points}p</p>
-                                        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px' }}>
+                                        <p style={{ margin: 0, fontWeight: '600' }}>{item.title}</p>
+                                        <p style={{
+                                            margin: '4px 0 0 0',
+                                            color: 'var(--muted)',
+                                            fontSize: '12px'
+                                        }}>
                                             {item.correctAnswers}/{item.totalQuestions} corecte
                                         </p>
                                     </div>
+                                    <p style={{
+                                        margin: 0,
+                                        fontSize: '16px',
+                                        fontWeight: '700',
+                                        color: 'var(--success)'
+                                    }}>
+                                        +{item.points}
+                                    </p>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
-                <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '24px', border: '1px solid var(--border)' }}>
-                    <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)' }}>Insigne</h3>
-                    {profile.badges.length === 0 ? (
-                        <p style={{ color: 'var(--muted)' }}>Obține primele puncte pentru a debloca o insignă.</p>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            {profile.badges.map(badge => (
-                                <div
-                                    key={badge.id}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        border: '1px dashed var(--border)',
-                                        borderRadius: '12px',
-                                        padding: '10px 14px'
-                                    }}
-                                >
-                                    <div style={{ fontSize: '28px' }}>{badge.icon}</div>
-                                    <div>
-                                        <p style={{ margin: 0, fontWeight: 600 }}>{badge.name}</p>
-                                        <p style={{ margin: '2px 0 0 0', color: 'var(--muted)', fontSize: '13px' }}>{badge.description}</p>
-                                        {badge.unlockedAt && (
-                                            <p style={{ margin: '4px 0 0 0', color: '#10b981', fontSize: '12px' }}>
-                                                Deblocată pe {new Date(badge.unlockedAt).toLocaleDateString('ro-RO')}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Acțiuni */}
-            <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '24px', border: '1px solid var(--border)' }}>
-                <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)' }}>Acțiuni rapide</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                    <button
-                        onClick={() => navigate('/map')}
-                        style={{
-                            flex: '1 1 220px',
-                            padding: '14px',
-                            borderRadius: '12px',
-                            border: 'none',
-                            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-                            color: 'white',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                        }}
-                    >
-                        🗺️ Explorează harta
-                    </button>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        style={{
-                            flex: '1 1 220px',
-                            padding: '14px',
-                            borderRadius: '12px',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'transparent',
-                            color: 'var(--text)',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                        }}
-                    >
-                        📊 Vezi progresul detaliat
-                    </button>
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );
