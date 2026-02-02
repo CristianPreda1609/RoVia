@@ -7,6 +7,7 @@ public class LeaderboardEntryDto
     public int UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public int TotalPoints { get; set; }
+    public int MonthlyPoints { get; set; }
     public int Level { get; set; }
     public string LevelName { get; set; } = string.Empty;
     public double LevelProgress { get; set; }
@@ -15,4 +16,5 @@ public class LeaderboardEntryDto
     public int QuizzesCompleted { get; set; }
     public DateTime? LastCompletedAt { get; set; }
     public DateTime JoinedAt { get; set; }
+    public bool IsMonthly { get; set; } // true = monthly leaderboard, false = all-time
 }

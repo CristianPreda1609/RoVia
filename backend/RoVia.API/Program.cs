@@ -23,7 +23,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = null; // Păstrează PascalCase
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -32,6 +36,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<QuizService>();
 builder.Services.AddScoped<ProfileService>();
+builder.Services.AddScoped<VoucherService>();
 builder.Services.AddScoped<PromoterWorkflowService>();
 builder.Services.AddScoped<AdminWorkflowService>();
 
@@ -65,6 +70,7 @@ using (var scope = app.Services.CreateScope())
     try 
     {
         DataSeeder.SeedAttractions(context);
+        DataSeeder.SeedVouchers(context);
     }
     catch (Exception ex)
     {

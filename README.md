@@ -231,14 +231,6 @@ MIT License - see LICENSE file for details
 
 ---
 
-## 📞 Support & Contact
-
-- 📧 Email: contact@rovia.ro
-- 🐛 Issues: GitHub Issues
-- 💬 Community: [Discord](https://discord.gg/rovia)
-
----
-
 **Status**: 🚀 PRODUCTION READY  
 **Last Updated**: 2 februarie 2026  
 **Version**: 2.0 - Vibrant Design Edition with 100% Test Coverage

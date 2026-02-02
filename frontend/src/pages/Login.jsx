@@ -21,11 +21,11 @@ function Login() {
 
         try {
             const response = await api.post('/auth/login', {
-                email: email,
-                password: password
+                Email: email,
+                Password: password
             });
 
-            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('token', response.data.Token);
             emitAuthChange();
             setSuccess('Autentificare reușită!');
 

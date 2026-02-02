@@ -30,6 +30,14 @@ const TYPE_LABELS = {
 
 const formatRating = (value) => (value ?? 0).toFixed(1);
 
+const normalizeAttraction = (attraction) => ({
+  id: attraction.Id ?? attraction.id,
+  name: attraction.Name ?? attraction.name,
+  region: attraction.Region ?? attraction.region,
+  rating: attraction.Rating ?? attraction.rating,
+  type: attraction.Type ?? attraction.type
+});
+
 const getRegionPalette = (region, isDark) => {
   const meta = REGION_META[region];
   if (!meta) return { ...DEFAULT_REGION, color: DEFAULT_REGION.color(isDark) };
@@ -94,7 +102,11 @@ export default function Sidebar({ isOpen, onClose }) {
         const response = await api.get('/attractions');
         if (!isMounted) return;
 
-        const grouped = response.data.reduce((acc, attraction) => {
+        const normalized = Array.isArray(response.data)
+          ? response.data.map(normalizeAttraction)
+          : [];
+
+        const grouped = normalized.reduce((acc, attraction) => {
           const regionName = attraction.region || 'Fără regiune';
           if (!acc[regionName]) acc[regionName] = [];
           acc[regionName].push(attraction);
@@ -199,13 +211,13 @@ export default function Sidebar({ isOpen, onClose }) {
             {isOpen && <span style={{ fontSize: 14, fontWeight: 500 }}>Autentificare</span>}
           </Link>
         ) : (
-          <Link to="/profile" style={navItemStyle('/profile')}>
+          <Link to="/dashboard" style={navItemStyle('/dashboard')}>
             <div style={iconBoxStyle}>
               <Icon name="user" />
             </div>
             {isOpen && (
               <span style={{ fontSize: 14, fontWeight: 500 }}>
-                {auth.username || 'Profil'}
+                {auth.username || 'Panou Control'}
               </span>
             )}
           </Link>
@@ -216,13 +228,6 @@ export default function Sidebar({ isOpen, onClose }) {
       {isAuth && (
         <div style={{ padding: '16px 8px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {isOpen && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Management</span>}
-          
-          <Link to="/dashboard" style={navItemStyle('/dashboard')}>
-              <div style={iconBoxStyle}>
-                <Icon name="user" />
-              </div>
-              {isOpen && <span style={{ fontSize: 14, fontWeight: 500 }}>Panou Control</span>}
-          </Link>
           
           <Link to="/promoter" style={navItemStyle('/promoter')}>
             <div style={iconBoxStyle}>

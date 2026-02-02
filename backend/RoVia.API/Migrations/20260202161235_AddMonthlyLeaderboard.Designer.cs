@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RoVia.API.Data;
 
@@ -11,9 +12,11 @@ using RoVia.API.Data;
 namespace RoVia.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260202161235_AddMonthlyLeaderboard")]
+    partial class AddMonthlyLeaderboard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -519,100 +522,6 @@ namespace RoVia.API.Migrations
                     b.ToTable("UserProgresses");
                 });
 
-            modelBuilder.Entity("RoVia.API.Models.UserVoucher", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsRedeemed")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("PurchasedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("RedeemedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RedemptionCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VoucherId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("VoucherId");
-
-                    b.ToTable("UserVouchers");
-                });
-
-            modelBuilder.Entity("RoVia.API.Models.Voucher", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("CostPoints")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CurrentUses")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DiscountType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("DiscountValue")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<int?>("MaxUses")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Vouchers");
-                });
-
             modelBuilder.Entity("RoVia.API.Models.Answer", b =>
                 {
                     b.HasOne("RoVia.API.Models.Question", "Question")
@@ -766,25 +675,6 @@ namespace RoVia.API.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("RoVia.API.Models.UserVoucher", b =>
-                {
-                    b.HasOne("RoVia.API.Models.User", "User")
-                        .WithMany("UserVouchers")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RoVia.API.Models.Voucher", "Voucher")
-                        .WithMany("UserVouchers")
-                        .HasForeignKey("VoucherId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-
-                    b.Navigation("Voucher");
-                });
-
             modelBuilder.Entity("RoVia.API.Models.Attraction", b =>
                 {
                     b.Navigation("Suggestions");
@@ -823,13 +713,6 @@ namespace RoVia.API.Migrations
                     b.Navigation("Quizzes");
 
                     b.Navigation("ReviewedApplications");
-
-                    b.Navigation("UserVouchers");
-                });
-
-            modelBuilder.Entity("RoVia.API.Models.Voucher", b =>
-                {
-                    b.Navigation("UserVouchers");
                 });
 #pragma warning restore 612, 618
         }

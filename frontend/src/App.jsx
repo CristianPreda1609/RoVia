@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import MapPage from './pages/MapPage';
-import Profile from "./pages/Profile";
 import QuizPage from './pages/QuizPage';
 import AttractionPage from './pages/AttractionPage';
 import Contact from './pages/Contact.jsx';
@@ -74,11 +73,7 @@ function App() {
 						<Route path="/attractions/:id" element={<AttractionPage />} />
 						<Route
 							path="/profile"
-							element={
-								<RequireAuth>
-									<Profile />
-								</RequireAuth>
-							}
+							element={<Navigate to="/dashboard?tab=account" />}
 						/>
 						<Route path="/quiz/:quizId" element={<QuizPage />} />
 						<Route path="/leaderboard" element={<Leaderboard />} />

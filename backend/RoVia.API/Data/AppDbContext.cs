@@ -19,6 +19,9 @@ public class AppDbContext : DbContext
     public DbSet<UserBadge> UserBadges { get; set; }
     public DbSet<PromoterApplication> PromoterApplications { get; set; }
     public DbSet<AttractionSuggestion> AttractionSuggestions { get; set; }
+    public DbSet<LeaderboardArchive> LeaderboardArchives { get; set; }
+    public DbSet<Voucher> Vouchers { get; set; }
+    public DbSet<UserVoucher> UserVouchers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,5 +119,23 @@ public class AppDbContext : DbContext
             .WithMany(a => a.Suggestions)
             .HasForeignKey(s => s.AttractionId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<LeaderboardArchive>()
+            .HasOne(la => la.User)
+            .WithMany(u => u.LeaderboardArchives)
+            .HasForeignKey(la => la.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserVoucher>()
+            .HasOne(uv => uv.User)
+            .WithMany(u => u.UserVouchers)
+            .HasForeignKey(uv => uv.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserVoucher>()
+            .HasOne(uv => uv.Voucher)
+            .WithMany(v => v.UserVouchers)
+            .HasForeignKey(uv => uv.VoucherId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

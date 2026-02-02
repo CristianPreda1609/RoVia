@@ -23,11 +23,12 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [isMonthly, setIsMonthly] = useState(false);
   const auth = useAuth();
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const { data } = await api.get('/profile/leaderboard?take=50');
+      const { data } = await api.get(`/profile/leaderboard?take=50&monthly=${isMonthly}`);
       setEntries(Array.isArray(data) ? data : []);
       setLastUpdated(new Date());
       setError('');
@@ -37,7 +38,7 @@ export default function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isMonthly]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -73,25 +74,73 @@ export default function Leaderboard() {
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '48px' }}>
-          <h1 style={{ 
-            fontSize: '36px', 
-            fontWeight: '800',
-            margin: '0 0 12px 0',
-            background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            🏆 Clasament Global
-          </h1>
-          <p style={{
-            margin: 0,
-            color: 'var(--muted)',
-            fontSize: '16px',
-            maxWidth: '600px'
-          }}>
-            Eroii RoVia în timp real. Clasamentul se actualizează automat.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+            <div>
+              <h1 style={{ 
+                fontSize: '36px', 
+                fontWeight: '800',
+                margin: '0 0 12px 0',
+                background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                🏆 Clasament Global
+              </h1>
+              <p style={{
+                margin: 0,
+                color: 'var(--muted)',
+                fontSize: '16px',
+                maxWidth: '600px'
+              }}>
+                Eroii RoVia în timp real. Clasamentul se actualizează automat.
+              </p>
+            </div>
+            
+            {/* Tab Selector */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              background: 'var(--topbar-bg)',
+              padding: '6px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)'
+            }}>
+              <button
+                onClick={() => setIsMonthly(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: !isMonthly ? 'var(--accent)' : 'transparent',
+                  color: !isMonthly ? 'white' : 'var(--muted)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 200ms ease',
+                  fontSize: '14px'
+                }}
+              >
+                🏆 All-time
+              </button>
+              <button
+                onClick={() => setIsMonthly(true)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isMonthly ? 'var(--accent)' : 'transparent',
+                  color: isMonthly ? 'white' : 'var(--muted)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 200ms ease',
+                  fontSize: '14px'
+                }}
+              >
+                📅 Lunar
+              </button>
+            </div>
+          </div>
+
           {lastUpdated && (
             <span style={{ 
               fontSize: '12px', 
@@ -149,12 +198,12 @@ export default function Leaderboard() {
                   gap: '20px'
                 }}>
                   {topThree.map((entry) => {
-                    const medalColor = getMedalColor(entry.rank);
-                    const progressPercent = Math.min(100, Math.round((entry.levelProgress || 0) * 100));
+                    const medalColor = getMedalColor(entry.Rank);
+                    const progressPercent = Math.min(100, Math.round((entry.LevelProgress || 0) * 100));
                     
                     return (
                       <div 
-                        key={entry.userId}
+                        key={entry.UserId}
                         style={{
                           borderRadius: '16px',
                           border: '2px solid var(--border)',
@@ -183,7 +232,7 @@ export default function Leaderboard() {
                           borderRadius: '20px',
                           marginBottom: '12px'
                         }}>
-                          {getMedalEmoji(entry.rank)} Locul {entry.rank}
+                          {getMedalEmoji(entry.Rank)} Locul {entry.Rank}
                         </div>
 
                         <h3 style={{
@@ -191,7 +240,7 @@ export default function Leaderboard() {
                           fontWeight: '800',
                           margin: '12px 0 4px 0'
                         }}>
-                          {entry.username}
+                          {entry.Username}
                         </h3>
 
                         <p style={{
@@ -199,7 +248,7 @@ export default function Leaderboard() {
                           color: 'var(--muted)',
                           margin: '0 0 16px 0'
                         }}>
-                          {entry.levelName} • {entry.quizzesCompleted} quiz
+                          {entry.LevelName} • {entry.QuizzesCompleted} quiz
                         </p>
 
                         <div style={{
@@ -208,7 +257,7 @@ export default function Leaderboard() {
                           color: medalColor,
                           marginBottom: '16px'
                         }}>
-                          {entry.totalPoints.toLocaleString('ro-RO')} ⭐
+                          {(isMonthly ? entry.MonthlyPoints : entry.TotalPoints).toLocaleString('ro-RO')} ⭐
                         </div>
 
                         <div style={{ marginBottom: '8px' }}>
@@ -280,13 +329,13 @@ export default function Leaderboard() {
                   </div>
                 ) : (
                   [...topThree, ...rest].map((entry) => {
-                    const isCurrentUser = entry.userId === auth.userId;
-                    const progressPercent = Math.min(100, Math.round((entry.levelProgress || 0) * 100));
-                    const medalColor = getMedalColor(entry.rank);
+                    const isCurrentUser = entry.UserId === auth.userId;
+                    const progressPercent = Math.min(100, Math.round((entry.LevelProgress || 0) * 100));
+                    const medalColor = getMedalColor(entry.Rank);
 
                     return (
                       <div
-                        key={entry.userId}
+                        key={entry.UserId}
                         style={{
                           display: 'grid',
                           gridTemplateColumns: '80px 2fr 150px 150px 180px',
@@ -300,9 +349,9 @@ export default function Leaderboard() {
                         <div style={{
                           fontSize: '20px',
                           fontWeight: '800',
-                          color: entry.rank <= 3 ? medalColor : 'var(--accent)'
+                          color: entry.Rank <= 3 ? medalColor : 'var(--accent)'
                         }}>
-                          {getMedalEmoji(entry.rank)}
+                          {getMedalEmoji(entry.Rank)}
                         </div>
 
                         <div>
@@ -310,7 +359,7 @@ export default function Leaderboard() {
                             fontWeight: '600',
                             fontSize: '14px'
                           }}>
-                            {entry.username}
+                            {entry.Username}
                             {isCurrentUser && (
                               <span style={{
                                 marginLeft: '8px',
@@ -330,7 +379,7 @@ export default function Leaderboard() {
                             color: 'var(--muted)',
                             marginTop: '2px'
                           }}>
-                            {entry.quizzesCompleted} quiz
+                            {entry.QuizzesCompleted} quiz
                           </div>
                         </div>
 
@@ -339,7 +388,7 @@ export default function Leaderboard() {
                           fontWeight: '700',
                           color: 'var(--accent)'
                         }}>
-                          {entry.totalPoints.toLocaleString('ro-RO')}
+                          {(isMonthly ? entry.MonthlyPoints : entry.TotalPoints).toLocaleString('ro-RO')}
                         </div>
 
                         <div>
@@ -348,7 +397,7 @@ export default function Leaderboard() {
                             fontWeight: '600',
                             marginBottom: '4px'
                           }}>
-                            {entry.levelName}
+                            {entry.LevelName}
                           </div>
                           <div style={{
                             width: '100%',
@@ -370,7 +419,7 @@ export default function Leaderboard() {
                           fontSize: '12px',
                           color: 'var(--muted)'
                         }}>
-                          {formatDate(entry.lastCompletedAt)}
+                          {formatDate(entry.LastActivity)}
                         </span>
                       </div>
                     );

@@ -57,7 +57,7 @@ public class PromoterController : ControllerBase
         return Ok(application);
     }
 
-    [Authorize(Roles = "Promoter")]
+    [Authorize(Roles = "Promoter,Administrator")]
     [HttpPost("suggestions")]
     public async Task<IActionResult> SubmitSuggestion([FromBody] AttractionSuggestionRequest request)
     {
@@ -76,7 +76,7 @@ public class PromoterController : ControllerBase
         }
     }
 
-    [Authorize(Roles = "Promoter")]
+    [Authorize(Roles = "Promoter,Administrator")]
     [HttpGet("suggestions")]
     public async Task<IActionResult> GetSuggestions([FromQuery] SuggestionStatus? status)
     {
@@ -87,7 +87,7 @@ public class PromoterController : ControllerBase
         return Ok(suggestions);
     }
 
-    [Authorize(Roles = "Promoter")]
+    [Authorize(Roles = "Promoter,Administrator")]
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard()
     {
@@ -98,7 +98,7 @@ public class PromoterController : ControllerBase
         return Ok(summary);
     }
 
-    [Authorize(Roles = "Promoter")]
+    [Authorize(Roles = "Promoter,Administrator")]
     [HttpGet("attractions")]
     public async Task<IActionResult> GetOwnedAttractions()
     {
@@ -109,7 +109,7 @@ public class PromoterController : ControllerBase
         return Ok(attractions);
     }
 
-    [Authorize(Roles = "Promoter")]
+    [Authorize(Roles = "Promoter,Administrator")]
     [HttpPut("attractions/{attractionId:int}")]
     public async Task<IActionResult> UpdateOwnedAttraction(int attractionId, [FromBody] AttractionUpsertRequest request)
     {
@@ -131,7 +131,7 @@ public class PromoterController : ControllerBase
         }
     }
 
-    [Authorize(Roles = "Promoter")]
+    [Authorize(Roles = "Promoter,Administrator")]
     [HttpDelete("attractions/{attractionId:int}")]
     public async Task<IActionResult> DeleteOwnedAttraction(int attractionId)
     {

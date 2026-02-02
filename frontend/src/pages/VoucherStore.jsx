@@ -1,147 +1,135 @@
-import { useEffect, useMemo, useState } from 'react';
-import profileService from '../services/profileService';
+import { useEffect, useState } from 'react';
+import api from '../services/api';
 import useAuth from '../hooks/useAuth';
-import {
-  FOUR_WEEKS_MS,
-  getWalletKey,
-  getActiveRedemptions,
-  persistRedemptions,
-  calculateSpentPoints,
-  generateVoucherCode
-} from '../utils/voucherWallet';
 
-const VOUCHERS = [
-  {
-    id: 'voucher-5',
-    title: 'Escapadă Urbană',
-    discount: 5,
-    cost: 400,
-    icon: '🏙️',
-    accent: '#9945ff'
-  },
-  {
-    id: 'voucher-10',
-    title: 'Weekend Epic',
-    discount: 10,
-    cost: 850,
-    icon: '🏕️',
-    accent: '#ff6b35'
-  },
-  {
-    id: 'voucher-15',
-    title: 'Expediție Premium',
-    discount: 15,
-    cost: 1450,
-    icon: '🏔️',
-    accent: '#00d9ff'
-  }
-];
+export default function VoucherStore() {
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [myVouchers, setMyVouchers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('shop');
+  const [purchaseLoading, setPurchaseLoading] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const auth = useAuth();
 
-const formatDate = (value) => {
-  try {
-    return new Date(value).toLocaleDateString('ro-RO', {
+  const fetchAvailableVouchers = async () => {
+    try {
+      const { data } = await api.get('/voucher/available');
+      console.log('Vouchers from API:', data);
+      setAvailableVouchers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to fetch vouchers', err);
+      setError('Nu am putut încărca voucherele');
+    }
+  };
+
+  const fetchMyVouchers = async () => {
+    if (!auth.userId) return;
+    try {
+      const { data } = await api.get('/voucher/my-vouchers');
+      setMyVouchers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to fetch user vouchers', err);
+    }
+  };
+
+  const fetchProfile = async () => {
+    if (!auth.userId) return;
+    try {
+      const { data } = await api.get('/profile/me');
+      setProfile(data);
+    } catch (err) {
+      console.error('Failed to fetch profile', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableVouchers();
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (auth.userId) {
+      fetchMyVouchers();
+      fetchProfile();
+    }
+  }, [auth.userId]);
+
+  const handlePurchaseVoucher = async (voucherId) => {
+    if (!auth.userId) {
+      setError('Trebuie să te loghezi pentru a cumpăra vouchere');
+      return;
+    }
+
+    setPurchaseLoading(voucherId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { data } = await api.post(`/voucher/${voucherId}/purchase`);
+      setSuccess(data.message);
+      
+      await fetchAvailableVouchers();
+      await fetchMyVouchers();
+      await fetchProfile();
+      
+      setActiveTab('my-vouchers');
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Eroare la cumpărare');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setPurchaseLoading(null);
+    }
+  };
+
+  const handleRedeemVoucher = async (userVoucherId) => {
+    setPurchaseLoading(userVoucherId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { data } = await api.post(`/voucher/${userVoucherId}/redeem`);
+      setSuccess(data.message);
+      
+      await fetchMyVouchers();
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Eroare la redeem');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setPurchaseLoading(null);
+    }
+  };
+
+  const isExpired = (expiryDate) => {
+    return new Date(expiryDate) < new Date();
+  };
+
+  const daysRemaining = (expiryDate) => {
+    const days = Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, days);
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('ro-RO', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
     });
-  } catch {
-    return '—';
-  }
-};
-
-export default function VoucherStore() {
-  const auth = useAuth();
-  const walletKey = getWalletKey(auth);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [redemptions, setRedemptions] = useState({});
-  const [status, setStatus] = useState(null);
-
-  useEffect(() => {
-    const syncWallet = () => setRedemptions(getActiveRedemptions(walletKey));
-    syncWallet();
-    window.addEventListener('storage', syncWallet);
-    return () => window.removeEventListener('storage', syncWallet);
-  }, [walletKey]);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const data = await profileService.getMyProfile();
-        setProfile({
-          totalPoints: data.totalPoints ?? data.TotalPoints ?? 0,
-          levelName: data.levelName ?? data.LevelName ?? 'Explorator'
-        });
-      } catch (err) {
-        console.error('Profile error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
-
-  const spentPoints = useMemo(() => calculateSpentPoints(redemptions), [redemptions]);
-  const availablePoints = Math.max(0, (profile?.totalPoints ?? 0) - spentPoints);
-
-  const handleRedeem = (voucher) => {
-    if (!profile) return;
-    if (availablePoints < voucher.cost) {
-      setStatus({ type: 'error', message: 'Puncte insuficiente!' });
-      return;
-    }
-
-    const code = generateVoucherCode(voucher.discount);
-    const payload = {
-      ...redemptions,
-      [voucher.id]: {
-        code,
-        label: voucher.title,
-        cost: voucher.cost,
-        redeemedAt: Date.now(),
-        expiresAt: Date.now() + FOUR_WEEKS_MS
-      }
-    };
-
-    setRedemptions(payload);
-    persistRedemptions(walletKey, payload);
-    setStatus({ type: 'success', message: `✅ Voucher revendicat! Codul: ${code}` });
   };
-
-  const handleCopyCode = async (code) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setStatus({ type: 'success', message: '📋 Codul copiat!' });
-    } catch {
-      setStatus({ type: 'warning', message: 'Nu am reușit să copiez codul.' });
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: 'calc(100vh - 56px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        color: 'var(--muted)'
-      }}>
-        Se încarcă magazinul...
-      </div>
-    );
-  }
 
   return (
     <div style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
-      paddingLeft: '80px',
-      paddingTop: '24px',
+      paddingLeft: 'calc(80px + 20px)',
+      paddingTop: '40px',
       paddingBottom: '40px',
       color: 'var(--text)'
     }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* HEADER */}
         <div style={{ marginBottom: '40px' }}>
           <h1 style={{
@@ -153,245 +141,409 @@ export default function VoucherStore() {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
           }}>
-            🎁 Magazin Vouchere
+            🎁 Magazin Recompense
           </h1>
-          <p style={{ margin: 0, color: 'var(--muted)', fontSize: '16px' }}>
-            Transformă-ți punctele în vouchere exclusive pentru cazări și experiențe turistice
+          <p style={{
+            margin: 0,
+            color: 'var(--muted)',
+            fontSize: '16px',
+            maxWidth: '600px'
+          }}>
+            Transformă-ți punctele în vouchere exclusive pentru cazări, restaurante și tururi ghidate
           </p>
         </div>
 
-        {/* STATUS BANNER */}
-        {status && (
+        {/* ALERTS */}
+        {error && (
           <div style={{
             marginBottom: '24px',
             padding: '16px 20px',
             borderRadius: '12px',
-            border: `2px solid ${status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--error)' : 'var(--warning)'}`,
-            background: status.type === 'success' 
-              ? 'rgba(16, 185, 129, 0.1)' 
-              : status.type === 'error' 
-              ? 'rgba(239, 68, 68, 0.1)' 
-              : 'rgba(245, 158, 11, 0.1)',
-            color: status.type === 'success' 
-              ? 'var(--success)' 
-              : status.type === 'error' 
-              ? 'var(--error)' 
-              : 'var(--warning)'
+            border: '2px solid var(--error)',
+            background: 'rgba(220, 38, 38, 0.1)',
+            color: 'var(--error)',
+            fontSize: '14px'
           }}>
-            {status.message}
+            ⚠️ {error}
           </div>
         )}
 
-        {/* POINTS CARDS */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-          marginBottom: '40px'
-        }}>
+        {success && (
+          <div style={{
+            marginBottom: '24px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            border: '2px solid var(--success)',
+            background: 'rgba(16, 185, 129, 0.1)',
+            color: 'var(--success)',
+            fontSize: '14px'
+          }}>
+            ✅ {success}
+          </div>
+        )}
+
+        {/* POINTS CARD */}
+        {auth.userId && profile && (
           <div style={{
             background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
-            borderRadius: '12px',
-            padding: '20px',
+            borderRadius: '16px',
+            padding: '32px',
+            marginBottom: '40px',
             color: 'white',
             boxShadow: 'var(--shadow-lg)'
           }}>
-            <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Puncte Disponibile</p>
-            <p style={{ margin: '12px 0 0 0', fontSize: '28px', fontWeight: '800' }}>{availablePoints}</p>
+            <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>Punctele Mele</p>
+            <h2 style={{ margin: '12px 0 0 0', fontSize: '42px', fontWeight: '800' }}>
+              {profile.TotalPoints || profile.totalPoints || 0} ⭐
+            </h2>
+            <p style={{ margin: '8px 0 0 0', opacity: 0.9, fontSize: '14px' }}>
+              Nivel: {profile.LevelName || profile.levelName || 'Explorator'}
+            </p>
           </div>
+        )}
 
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '20px'
-          }}>
-            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>Puncte Rezervate</p>
-            <p style={{ margin: '12px 0 0 0', fontSize: '28px', fontWeight: '800', color: 'var(--secondary)' }}>{spentPoints}</p>
-          </div>
-
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '20px'
-          }}>
-            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>Total Puncte</p>
-            <p style={{ margin: '12px 0 0 0', fontSize: '28px', fontWeight: '800', color: 'var(--tertiary)' }}>{profile?.totalPoints ?? 0}</p>
-          </div>
+        {/* TABS */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '32px',
+          borderBottom: '2px solid var(--border)'
+        }}>
+          <button
+            onClick={() => setActiveTab('shop')}
+            style={{
+              padding: '12px 24px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'shop' ? '3px solid var(--accent)' : 'none',
+              color: activeTab === 'shop' ? 'var(--accent)' : 'var(--muted)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 200ms ease',
+              fontSize: '16px'
+            }}
+          >
+            🛍️ Cumpără Vouchere
+          </button>
+          <button
+            onClick={() => setActiveTab('my-vouchers')}
+            style={{
+              padding: '12px 24px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'my-vouchers' ? '3px solid var(--accent)' : 'none',
+              color: activeTab === 'my-vouchers' ? 'var(--accent)' : 'var(--muted)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 200ms ease',
+              fontSize: '16px'
+            }}
+          >
+            💳 Voucherele Mele ({myVouchers.length})
+          </button>
         </div>
 
-        {/* VOUCHERS GRID */}
-        <div style={{ marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>💳 Vouchere Disponibile</h2>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '20px'
-          }}>
-            {VOUCHERS.map(voucher => (
-              <div
-                key={voucher.id}
-                style={{
-                  background: 'var(--card-bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  padding: '24px',
-                  boxShadow: 'var(--shadow-sm)',
-                  transition: 'all 200ms ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '16px'
-                }}>
-                  <div style={{ fontSize: '32px' }}>{voucher.icon}</div>
-                  <span style={{
-                    fontSize: '20px',
-                    fontWeight: '800',
-                    color: voucher.accent
-                  }}>
-                    -{voucher.discount}%
-                  </span>
-                </div>
-
-                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 8px 0' }}>
-                  {voucher.title}
-                </h3>
-
-                <p style={{ margin: '0 0 20px 0', color: 'var(--muted)', fontSize: '14px' }}>
-                  Reducere pe cazări și tururi ghidate
-                </p>
-
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: '20px'
-                }}>
-                  <span style={{
-                    fontSize: '22px',
-                    fontWeight: '800',
-                    color: 'var(--accent)'
-                  }}>
-                    {voucher.cost} ⭐
-                  </span>
-                  <button
-                    onClick={() => handleRedeem(voucher)}
-                    disabled={availablePoints < voucher.cost}
+        {/* SHOP TAB */}
+        {activeTab === 'shop' && (
+          <div>
+            {loading ? (
+              <div style={{
+                padding: '60px 20px',
+                textAlign: 'center',
+                borderRadius: '16px',
+                border: '1px solid var(--border)',
+                background: 'var(--card-bg)'
+              }}>
+                <p style={{ color: 'var(--muted)' }}>Se încarcă voucherele...</p>
+              </div>
+            ) : availableVouchers.length === 0 ? (
+              <div style={{
+                padding: '60px 20px',
+                textAlign: 'center',
+                borderRadius: '16px',
+                border: '1px solid var(--border)',
+                background: 'var(--card-bg)'
+              }}>
+                <p style={{ color: 'var(--muted)' }}>📭 Niciun voucher disponibil în acest moment</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '24px'
+              }}>
+                {availableVouchers.map((voucher) => (
+                  <div
+                    key={voucher.Id}
                     style={{
-                      padding: '10px 20px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: availablePoints >= voucher.cost ? voucher.accent : 'var(--muted)',
-                      color: 'white',
-                      fontWeight: '600',
-                      cursor: availablePoints >= voucher.cost ? 'pointer' : 'not-allowed',
-                      opacity: availablePoints >= voucher.cost ? 1 : 0.5,
+                      background: 'var(--card-bg)',
+                      border: '2px solid var(--border)',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      boxShadow: 'var(--shadow-md)',
                       transition: 'all 200ms ease'
                     }}
                     onMouseEnter={(e) => {
-                      if (availablePoints >= voucher.cost) {
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                      }
+                      e.currentTarget.style.transform = 'translateY(-8px)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-md)';
                     }}
                   >
-                    {availablePoints >= voucher.cost ? 'Revendică' : 'Insuficient'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                    {/* Badge */}
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      background: 'var(--accent)',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '20px',
+                      marginBottom: '12px'
+                    }}>
+                      {voucher.Category || 'General'}
+                    </span>
 
-        {/* ACTIVE VOUCHERS */}
-        {Object.keys(redemptions).length > 0 && (
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>✅ Voucherele Mele Active</h2>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px'
-            }}>
-              {Object.entries(redemptions).map(([voucherId, redemption]) => {
-                const voucher = VOUCHERS.find(v => v.id === voucherId);
-                if (!voucher) return null;
-
-                return (
-                  <div
-                    key={voucherId}
-                    style={{
-                      background: 'var(--card-bg)',
-                      border: `2px solid ${voucher.accent}`,
+                    {/* Image */}
+                    <div style={{
+                      width: '100%',
+                      height: '160px',
+                      background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
                       borderRadius: '12px',
-                      padding: '20px'
-                    }}
-                  >
-                    <div style={{ marginBottom: '12px' }}>
-                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>Voucher Activ</p>
-                      <p style={{
-                        margin: '8px 0 0 0',
-                        fontSize: '18px',
-                        fontWeight: '800',
-                        letterSpacing: '2px',
-                        color: voucher.accent
-                      }}>
-                        {redemption.code}
-                      </p>
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '48px',
+                      marginBottom: '16px'
+                    }}>
+                      {voucher.ImageUrl ? (
+                        <img src={voucher.ImageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} alt="" />
+                      ) : (
+                        '🎫'
+                      )}
                     </div>
 
-                    <p style={{ margin: '12px 0', fontSize: '13px', color: 'var(--muted)' }}>
-                      {voucher.title} • -{voucher.discount}%
+                    <h3 style={{
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      margin: '0 0 8px 0'
+                    }}>
+                      {voucher.Title}
+                    </h3>
+
+                    <div style={{
+                      fontSize: '28px',
+                      fontWeight: '800',
+                      color: 'var(--accent)',
+                      marginBottom: '12px'
+                    }}>
+                      {voucher.DiscountType === 'PERCENTAGE' ? `${voucher.DiscountValue}%` : `€${voucher.DiscountValue}`}
+                    </div>
+
+                    <p style={{
+                      margin: '0 0 16px 0',
+                      color: 'var(--muted)',
+                      fontSize: '14px',
+                      lineHeight: '1.5'
+                    }}>
+                      {voucher.Description}
                     </p>
+
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      marginBottom: '16px'
+                    }}>
+                      <p style={{ margin: '4px 0' }}>
+                        📅 Expiră: {formatDate(voucher.ExpiryDate)} ({daysRemaining(voucher.ExpiryDate)} zile)
+                      </p>
+                      {voucher.MaxUses && (
+                        <p style={{ margin: '4px 0' }}>
+                          📊 Uses: {voucher.CurrentUses}/{voucher.MaxUses}
+                        </p>
+                      )}
+                    </div>
 
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      gap: '12px'
+                      marginTop: '20px',
+                      borderTop: '1px solid var(--border)',
+                      paddingTop: '16px'
                     }}>
-                      <p style={{
-                        margin: 0,
-                        fontSize: '12px',
-                        color: 'var(--muted)'
+                      <span style={{
+                        fontSize: '20px',
+                        fontWeight: '800',
+                        color: 'var(--accent)'
                       }}>
-                        Expiră: {formatDate(redemption.expiresAt)}
-                      </p>
+                        {voucher.CostPoints} ⭐
+                      </span>
                       <button
-                        onClick={() => handleCopyCode(redemption.code)}
+                        onClick={() => handlePurchaseVoucher(voucher.Id)}
+                        disabled={purchaseLoading === voucher.Id}
                         style={{
-                          padding: '6px 12px',
-                          fontSize: '12px',
-                          background: voucher.accent,
-                          color: 'white',
+                          padding: '10px 16px',
+                          borderRadius: '8px',
                           border: 'none',
-                          borderRadius: '6px',
+                          background: 'var(--accent)',
+                          color: 'white',
+                          fontWeight: '600',
                           cursor: 'pointer',
-                          fontWeight: '600'
+                          transition: 'all 200ms ease',
+                          opacity: purchaseLoading === voucher.Id ? 0.6 : 1
+                        }}
+                        onMouseEnter={(e) => {
+                          if (purchaseLoading !== voucher.Id) {
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
                         }}
                       >
-                        Copiază
+                        {purchaseLoading === voucher.Id ? '...' : 'Cumpără'}
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MY VOUCHERS TAB */}
+        {activeTab === 'my-vouchers' && (
+          <div>
+            {!auth.userId ? (
+              <div style={{
+                padding: '60px 20px',
+                textAlign: 'center',
+                borderRadius: '16px',
+                border: '1px solid var(--border)',
+                background: 'var(--card-bg)'
+              }}>
+                <p style={{ color: 'var(--muted)' }}>🔐 Trebuie să te loghezi pentru a vedea voucherele</p>
+              </div>
+            ) : myVouchers.length === 0 ? (
+              <div style={{
+                padding: '60px 20px',
+                textAlign: 'center',
+                borderRadius: '16px',
+                border: '1px solid var(--border)',
+                background: 'var(--card-bg)'
+              }}>
+                <p style={{ color: 'var(--muted)' }}>📭 Nu ai vouchere încă. Mergi la Cumpără Vouchere!</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '24px'
+              }}>
+                {myVouchers.map((userVoucher) => (
+                  <div
+                    key={userVoucher.Id}
+                    style={{
+                      background: userVoucher.IsRedeemed ? 'rgba(107, 114, 128, 0.1)' : 'var(--card-bg)',
+                      border: userVoucher.IsRedeemed 
+                        ? '2px solid var(--muted)' 
+                        : isExpired(userVoucher.Voucher.ExpiryDate)
+                        ? '2px solid var(--error)'
+                        : '2px solid var(--success)',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      boxShadow: 'var(--shadow-md)',
+                      opacity: userVoucher.IsRedeemed ? 0.7 : 1
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      background: userVoucher.IsRedeemed 
+                        ? 'var(--muted)' 
+                        : isExpired(userVoucher.Voucher.ExpiryDate)
+                        ? 'var(--error)'
+                        : 'var(--success)',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '20px',
+                      marginBottom: '12px'
+                    }}>
+                      {userVoucher.IsRedeemed ? '✅ Folosit' : isExpired(userVoucher.Voucher.ExpiryDate) ? '❌ Expirat' : '🔔 Activ'}
+                    </span>
+
+                    <h3 style={{
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      margin: '0 0 8px 0'
+                    }}>
+                      {userVoucher.Voucher.Title}
+                    </h3>
+
+                    <div style={{
+                      fontSize: '24px',
+                      fontWeight: '800',
+                      color: 'var(--accent)',
+                      marginBottom: '12px'
+                    }}>
+                      {userVoucher.Voucher.DiscountType === 'PERCENTAGE' ? `${userVoucher.Voucher.DiscountValue}%` : `€${userVoucher.Voucher.DiscountValue}`}
+                    </div>
+
+                    <div style={{
+                      background: 'var(--bg)',
+                      border: '1px dashed var(--border)',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      marginBottom: '16px',
+                      fontSize: '14px',
+                      fontFamily: 'monospace'
+                    }}>
+                      <p style={{ margin: '0 0 8px 0', color: 'var(--muted)', fontSize: '12px' }}>Cod Redeem:</p>
+                      <p style={{ margin: 0, fontWeight: '700', wordBreak: 'break-all' }}>{userVoucher.RedemptionCode}</p>
+                    </div>
+
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      marginBottom: '16px'
+                    }}>
+                      <p style={{ margin: '4px 0' }}>🛒 Cumpărat: {formatDate(userVoucher.PurchasedAt)}</p>
+                      {userVoucher.IsRedeemed && (
+                        <p style={{ margin: '4px 0' }}>✅ Folosit: {formatDate(userVoucher.RedeemedAt)}</p>
+                      )}
+                      {!userVoucher.IsRedeemed && !isExpired(userVoucher.Voucher.ExpiryDate) && (
+                        <p style={{ margin: '4px 0' }}>📅 Expiră: {formatDate(userVoucher.Voucher.ExpiryDate)}</p>
+                      )}
+                    </div>
+
+                    {!userVoucher.IsRedeemed && !isExpired(userVoucher.Voucher.ExpiryDate) && (
+                      <button
+                        onClick={() => handleRedeemVoucher(userVoucher.Id)}
+                        disabled={purchaseLoading === userVoucher.Id}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'var(--success)',
+                          color: 'white',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 200ms ease',
+                          opacity: purchaseLoading === userVoucher.Id ? 0.6 : 1
+                        }}
+                      >
+                        {purchaseLoading === userVoucher.Id ? '...' : 'Marchează ca Folosit'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

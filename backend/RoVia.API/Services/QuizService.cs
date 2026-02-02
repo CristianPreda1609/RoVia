@@ -54,6 +54,23 @@ public class QuizService
             .ToListAsync();
     }
 
+    public async Task<List<Quiz>> GetAllQuizzesAsync()
+    {
+        return await _context.Quizzes
+            .Include(q => q.Attraction)
+            .Include(q => q.Questions)
+            .ToListAsync();
+    }
+
+    public async Task<List<Quiz>> GetQuizzesForUserAsync(int userId)
+    {
+        return await _context.Quizzes
+            .Where(q => q.CreatedByUserId == userId)
+            .Include(q => q.Attraction)
+            .Include(q => q.Questions)
+            .ToListAsync();
+    }
+
     public async Task<Quiz> GetQuizWithQuestionsAsync(int quizId)
     {
         return await _context.Quizzes
@@ -119,6 +136,7 @@ public class QuizService
         if (user != null)
         {
             user.TotalPoints += finalPoints;
+            user.MonthlyPoints += finalPoints;
             _context.Users.Update(user);
         }
 

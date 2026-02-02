@@ -30,13 +30,15 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     try {
-      // Backend might not have PUT /profile/me endpoint yet
-      // For now, just show success message as placeholder
       setError(null);
-      // await api.put('/profile/me', formData);
-      setProfile(formData);
+      await api.put('/profile/me', {
+        Username: formData.Username,
+        Email: formData.Email
+      });
+      const res = await api.get('/profile/me');
+      setProfile(res.data);
+      setFormData(res.data);
       setIsEditing(false);
-      // setError({ type: 'success', message: '✅ Profil actualizat!' });
     } catch (err) {
       setError('❌ ' + (err.response?.data?.message || 'Eroare la salvare'));
     }
@@ -121,8 +123,8 @@ export default function Profile() {
             {isEditing ? (
               <input
                 type="text"
-                value={formData.username || ''}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                value={formData.Username || ''}
+                onChange={(e) => setFormData({ ...formData, Username: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -133,7 +135,7 @@ export default function Profile() {
                 }}
               />
             ) : (
-              <p style={{ margin: 0, fontSize: '16px' }}>{profile?.username}</p>
+              <p style={{ margin: 0, fontSize: '16px' }}>{profile?.Username}</p>
             )}
           </div>
 
@@ -145,8 +147,8 @@ export default function Profile() {
             {isEditing ? (
               <input
                 type="email"
-                value={formData.email || ''}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                value={formData.Email || ''}
+                onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -157,7 +159,7 @@ export default function Profile() {
                 }}
               />
             ) : (
-              <p style={{ margin: 0, fontSize: '16px' }}>{profile?.email}</p>
+              <p style={{ margin: 0, fontSize: '16px' }}>{profile?.Email}</p>
             )}
           </div>
 
@@ -172,7 +174,7 @@ export default function Profile() {
               color: 'var(--accent)',
               fontWeight: '600'
             }}>
-              {profile?.role || 'Utilizator'}
+              {profile?.Role || 'Utilizator'}
             </p>
           </div>
 
@@ -189,7 +191,7 @@ export default function Profile() {
                 Experiență (XP)
               </label>
               <p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: 'var(--accent)' }}>
-                {profile?.xp || 0}
+                {profile?.TotalPoints || 0} ⭐
               </p>
             </div>
             <div>
@@ -197,7 +199,7 @@ export default function Profile() {
                 Quiz-uri Finalizate
               </label>
               <p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: 'var(--success)' }}>
-                {profile?.quizzesCompleted || 0}
+                {profile?.QuizzesCompleted || 0}
               </p>
             </div>
           </div>

@@ -36,6 +36,23 @@ const createEmptyFilters = () => ({
     minRating: ''
 });
 
+const normalizeAttraction = (attraction) => ({
+    id: attraction.Id ?? attraction.id,
+    name: attraction.Name ?? attraction.name,
+    region: attraction.Region ?? attraction.region,
+    latitude: attraction.Latitude ?? attraction.latitude,
+    longitude: attraction.Longitude ?? attraction.longitude,
+    rating: attraction.Rating ?? attraction.rating,
+    type: attraction.Type ?? attraction.type,
+    imageUrl: attraction.ImageUrl ?? attraction.imageUrl,
+    description: attraction.Description ?? attraction.description,
+    isApproved: attraction.IsApproved ?? attraction.isApproved,
+    createdAt: attraction.CreatedAt ?? attraction.createdAt,
+    updatedAt: attraction.UpdatedAt ?? attraction.updatedAt,
+    createdByUserId: attraction.CreatedByUserId ?? attraction.createdByUserId,
+    createdByUser: attraction.CreatedByUser ?? attraction.createdByUser
+});
+
 export default function MapPage() {
     const navigate = useNavigate();
     const [attractions, setAttractions] = useState([]);
@@ -202,8 +219,11 @@ export default function MapPage() {
             if (filters.minRating) params.append('minRating', filters.minRating);
 
             const response = await api.get(`/attractions?${params.toString()}`);
-            setAttractions(response.data);
-            setCatalog(prev => (prev.length ? prev : response.data));
+            const normalized = Array.isArray(response.data)
+                ? response.data.map(normalizeAttraction)
+                : [];
+            setAttractions(normalized);
+            setCatalog(prev => (prev.length ? prev : normalized));
         } catch (error) {
             console.error('Eroare la încărcarea atracțiilor:', error);
             setAttractions([]);
@@ -647,7 +667,19 @@ export default function MapPage() {
     };
 
     const handleMarkerClick = (attraction) => {
+        // Save current map center before the click affects it
+        const currentCenter = mapInstance?.getCenter();
         setSelectedAttraction(attraction);
+        
+        // Restore the center after a brief delay to counteract Google Maps auto-pan
+        if (currentCenter) {
+            setTimeout(() => {
+                if (mapInstance) {
+                    mapInstance.panTo(currentCenter);
+                }
+            }, 10);
+        }
+        
         updateInfoWindowStyles(isDark);
     };
 
@@ -1106,7 +1138,7 @@ export default function MapPage() {
                             onCloseClick={() => setSelectedAttraction(null)}
                             options={{
                                 pixelOffset: new window.google.maps.Size(0, -40),
-                                disableAutoPan: false
+                                disableAutoPan: true
                             }}
                         >
                             <div style={{

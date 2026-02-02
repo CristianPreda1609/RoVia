@@ -14,6 +14,9 @@ export default function AdminPanel() {
   const [status, setStatus] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
 
+  const createEmptyAnswer = () => ({ text: '', isCorrect: false, order: 0 });
+  const createEmptyQuestion = () => ({ text: '', pointsValue: 10, order: 0, answers: [createEmptyAnswer(), createEmptyAnswer()] });
+
   // Add/Edit Attraction Form
   const [editingAttractionId, setEditingAttractionId] = useState(null);
   const [attractionForm, setAttractionForm] = useState({
@@ -35,7 +38,7 @@ export default function AdminPanel() {
     description: '',
     difficultyLevel: 1,
     timeLimit: 60,
-    questions: []
+    questions: [createEmptyQuestion()]
   });
 
   useEffect(() => {
@@ -155,18 +158,97 @@ export default function AdminPanel() {
     setActiveTab('attractions');
   };
 
+  const updateQuestion = (index, patch) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => (i === index ? { ...q, ...patch } : q));
+      return { ...prev, questions };
+    });
+  };
+
+  const updateAnswer = (qIndex, aIndex, patch) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => {
+        if (i !== qIndex) return q;
+        const answers = q.answers.map((a, j) => (j === aIndex ? { ...a, ...patch } : a));
+        return { ...q, answers };
+      });
+      return { ...prev, questions };
+    });
+  };
+
+  const addQuestion = () => {
+    setQuizForm(prev => ({ ...prev, questions: [...prev.questions, createEmptyQuestion()] }));
+  };
+
+  const removeQuestion = (index) => {
+    setQuizForm(prev => ({ ...prev, questions: prev.questions.filter((_, i) => i !== index) }));
+  };
+
+  const addAnswer = (qIndex) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => i === qIndex ? { ...q, answers: [...q.answers, createEmptyAnswer()] } : q);
+      return { ...prev, questions };
+    });
+  };
+
+  const removeAnswer = (qIndex, aIndex) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => {
+        if (i !== qIndex) return q;
+        return { ...q, answers: q.answers.filter((_, j) => j !== aIndex) };
+      });
+      return { ...prev, questions };
+    });
+  };
+
   const handleSaveQuiz = async () => {
     if (!quizForm.title.trim() || !quizForm.description.trim()) {
       setStatus({ type: 'error', message: '❌ Completează titlul și descrierea' });
       return;
     }
+    if (!quizForm.questions.length) {
+      setStatus({ type: 'error', message: '❌ Adaugă cel puțin o întrebare' });
+      return;
+    }
+    for (const [idx, q] of quizForm.questions.entries()) {
+      if (!q.text.trim()) {
+        setStatus({ type: 'error', message: `❌ Întrebarea ${idx + 1} nu are text` });
+        return;
+      }
+      if (!q.answers || q.answers.length < 2) {
+        setStatus({ type: 'error', message: `❌ Întrebarea ${idx + 1} trebuie să aibă minim 2 răspunsuri` });
+        return;
+      }
+      if (!q.answers.some(a => a.isCorrect)) {
+        setStatus({ type: 'error', message: `❌ Întrebarea ${idx + 1} trebuie să aibă un răspuns corect` });
+        return;
+      }
+    }
     try {
+      const payload = {
+        AttractionId: Number(quizForm.attractionId) || 0,
+        Title: quizForm.title,
+        Description: quizForm.description,
+        DifficultyLevel: Number(quizForm.difficultyLevel) || 1,
+        TimeLimit: Number(quizForm.timeLimit) || 60,
+        Questions: quizForm.questions.map((q, qIdx) => ({
+          Text: q.text,
+          PointsValue: Number(q.pointsValue) || 10,
+          Order: q.order || qIdx + 1,
+          Answers: q.answers.map((a, aIdx) => ({
+            Text: a.text,
+            IsCorrect: Boolean(a.isCorrect),
+            Order: a.order || aIdx + 1
+          }))
+        }))
+      };
+
       const method = editingQuizId ? 'PUT' : 'POST';
       const url = editingQuizId ? `/quiz/${editingQuizId}` : '/quiz';
-      await api[method.toLowerCase()](url, quizForm);
+      await api[method.toLowerCase()](url, payload);
       setStatus({ type: 'success', message: `✅ Quiz ${editingQuizId ? 'actualizat' : 'creat'}!` });
       setEditingQuizId(null);
-      setQuizForm({ attractionId: 1, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [] });
+      setQuizForm({ attractionId: attractions[0]?.id || 1, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [createEmptyQuestion()] });
       fetchAdminData();
     } catch (err) {
       setStatus({ type: 'error', message: '❌ ' + (err.response?.data?.message || 'Eroare') });
@@ -184,17 +266,32 @@ export default function AdminPanel() {
     }
   };
 
-  const handleEditQuiz = (quiz) => {
-    setEditingQuizId(quiz.id);
-    setQuizForm({
-      attractionId: quiz.attractionId || 1,
-      title: quiz.title,
-      description: quiz.description,
-      difficultyLevel: quiz.difficultyLevel || 1,
-      timeLimit: quiz.timeLimit || 60,
-      questions: quiz.questions || []
-    });
-    setActiveTab('quizzes');
+  const handleEditQuiz = async (quiz) => {
+    try {
+      const res = await api.get(`/quiz/${quiz.id}/manage`);
+      const data = res.data || {};
+      setEditingQuizId(quiz.id);
+      setQuizForm({
+        attractionId: data.attractionId || quiz.attractionId || 1,
+        title: data.title || quiz.title,
+        description: data.description || quiz.description,
+        difficultyLevel: data.difficultyLevel || quiz.difficultyLevel || 1,
+        timeLimit: data.timeLimit || quiz.timeLimit || 60,
+        questions: (data.questions || []).map(q => ({
+          text: q.text,
+          pointsValue: q.pointsValue,
+          order: q.order,
+          answers: (q.answers || []).map(a => ({
+            text: a.text,
+            isCorrect: a.isCorrect,
+            order: a.order
+          }))
+        }))
+      });
+      setActiveTab('quizzes');
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Nu am putut încărca quiz-ul pentru editare' });
+    }
   };
 
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text)' }}>Se încarcă...</div>;
@@ -351,6 +448,10 @@ export default function AdminPanel() {
                     <input type="number" value={attractionForm.longitude} onChange={(e) => setAttractionForm({...attractionForm, longitude: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
                   </div>
                 </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Imagine (URL)</label>
+                  <input type="text" value={attractionForm.imageUrl} onChange={(e) => setAttractionForm({...attractionForm, imageUrl: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={handleSaveAttraction} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>💾 Salvează</button>
                   {editingAttractionId && (
@@ -419,10 +520,40 @@ export default function AdminPanel() {
                     <input type="number" value={quizForm.timeLimit} onChange={(e) => setQuizForm({...quizForm, timeLimit: parseInt(e.target.value) || 60})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
                   </div>
                 </div>
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Întrebări</label>
+                    <button onClick={addQuestion} style={{ padding: '6px 10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>+ Întrebare</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {quizForm.questions.map((q, qIndex) => (
+                      <div key={qIndex} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                          <input type="text" placeholder={`Întrebarea ${qIndex + 1}`} value={q.text} onChange={(e) => updateQuestion(qIndex, { text: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                          <input type="number" placeholder="Puncte" value={q.pointsValue} onChange={(e) => updateQuestion(qIndex, { pointsValue: parseInt(e.target.value) || 10 })} style={{ width: '90px', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                          <button onClick={() => removeQuestion(qIndex)} style={{ padding: '0 10px', background: 'var(--error)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✗</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {q.answers.map((a, aIndex) => (
+                            <div key={aIndex} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input type="text" placeholder={`Răspuns ${aIndex + 1}`} value={a.text} onChange={(e) => updateAnswer(qIndex, aIndex, { text: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                                <input type="checkbox" checked={a.isCorrect} onChange={(e) => updateAnswer(qIndex, aIndex, { isCorrect: e.target.checked })} />
+                                Corect
+                              </label>
+                              <button onClick={() => removeAnswer(qIndex, aIndex)} style={{ padding: '0 10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✗</button>
+                            </div>
+                          ))}
+                          <button onClick={() => addAnswer(qIndex)} style={{ alignSelf: 'flex-start', padding: '6px 10px', background: 'var(--card-bg)', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--muted)' }}>+ Răspuns</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={handleSaveQuiz} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>💾 Salvează</button>
                   {editingQuizId && (
-                    <button onClick={() => { setEditingQuizId(null); setQuizForm({ attractionId: 1, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [] }); }} style={{ flex: 1, padding: '10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>✗ Anulează</button>
+                    <button onClick={() => { setEditingQuizId(null); setQuizForm({ attractionId: attractions[0]?.id || 1, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [createEmptyQuestion()] }); }} style={{ flex: 1, padding: '10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>✗ Anulează</button>
                   )}
                 </div>
               </div>

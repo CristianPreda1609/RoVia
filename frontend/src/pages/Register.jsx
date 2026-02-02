@@ -41,7 +41,11 @@ function Register() {
         setLoading(true);
 
         try {
-            await api.post('/auth/register', formData);
+            await api.post('/auth/register', {
+                Username: formData.username,
+                Email: formData.email,
+                Password: formData.password
+            });
             setSuccess('Cont creat cu succes! Te redirecționăm la login...');
 
             setTimeout(() => {
