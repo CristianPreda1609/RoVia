@@ -1,1248 +1,590 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import adminService from '../services/adminService';
-import { REGION_LIST } from '../constants/regions';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import { getUserRole } from '../utils/auth';
 
-const STATUS_FILTERS = ['Pending', 'Approved', 'Rejected'];
-const STATUS_FROM_ENUM = {
-  0: 'Pending',
-  1: 'Approved',
-  2: 'Rejected'
-};
-
-const toStatusString = (value) => {
-  if (typeof value === 'number') {
-    return STATUS_FROM_ENUM[value] ?? 'Pending';
-  }
-  return value || 'Pending';
-};
-
-const normalizeSummary = (payload) => ({
-  PendingApplications: payload?.PendingApplications ?? payload?.pendingApplications ?? 0,
-  ApprovedApplications: payload?.ApprovedApplications ?? payload?.approvedApplications ?? 0,
-  RejectedApplications: payload?.RejectedApplications ?? payload?.rejectedApplications ?? 0,
-  PendingSuggestions: payload?.PendingSuggestions ?? payload?.pendingSuggestions ?? 0,
-  ApprovedSuggestions: payload?.ApprovedSuggestions ?? payload?.approvedSuggestions ?? 0,
-  RejectedSuggestions: payload?.RejectedSuggestions ?? payload?.rejectedSuggestions ?? 0,
-  ApprovedThisWeek: payload?.ApprovedThisWeek ?? payload?.approvedThisWeek ?? 0,
-});
-
-const ATTRACTION_TYPES = [
-  { value: 1, label: 'Naturală' },
-  { value: 2, label: 'Culturală' },
-  { value: 3, label: 'Istorică' },
-  { value: 4, label: 'Distracție' },
-  { value: 5, label: 'Religioasă' }
-];
-
-const DIFFICULTY_OPTIONS = [
-  { value: 1, label: 'Ușor' },
-  { value: 2, label: 'Mediu' },
-  { value: 3, label: 'Dificil' }
-];
-
-const createBlankAnswer = (isCorrect = false) => ({
-  text: '',
-  isCorrect
-});
-
-const createBlankQuestion = () => ({
-  text: '',
-  pointsValue: 10,
-  answers: [createBlankAnswer(true), createBlankAnswer(false)]
-});
-
-const createQuizInitialState = (attractionId = '') => ({
-  attractionId,
-  title: '',
-  description: '',
-  difficultyLevel: 1,
-  timeLimit: 120,
-  questions: [createBlankQuestion()]
-});
-
-const createAttractionInitialState = () => ({
-  name: '',
-  description: '',
-  region: '',
-  imageUrl: '',
-  type: ATTRACTION_TYPES[0].value,
-  latitude: '',
-  longitude: '',
-  rating: 5
-});
-
-const Card = ({ title, value, accent }) => (
-  <div style={{
-    borderRadius: 18,
-    padding: 20,
-    border: '1px solid var(--border)',
-    background: 'var(--card-bg)'
-  }}>
-    <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>{title}</p>
-    <p style={{ margin: '6px 0 0 0', fontSize: 28, fontWeight: 700, color: accent }}>{value}</p>
-  </div>
-);
-
-function AdminPanel() {
-  const [summary, setSummary] = useState(null);
-  const [applicationFilter, setApplicationFilter] = useState('Pending');
+export default function AdminPanel() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [applications, setApplications] = useState([]);
-  const [suggestionFilter, setSuggestionFilter] = useState('Pending');
   const [suggestions, setSuggestions] = useState([]);
-  const [loadingApplications, setLoadingApplications] = useState(false);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [error, setError] = useState(null);
   const [attractions, setAttractions] = useState([]);
-  const [attractionsLoading, setAttractionsLoading] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState(null);
+  const [quizzes, setQuizzes] = useState([]);
+
+  const createEmptyAnswer = () => ({ text: '', isCorrect: false, order: 0 });
+  const createEmptyQuestion = () => ({ text: '', pointsValue: 10, order: 0, answers: [createEmptyAnswer(), createEmptyAnswer()] });
+
+  // Add/Edit Attraction Form
   const [editingAttractionId, setEditingAttractionId] = useState(null);
-  const [attractionForm, setAttractionForm] = useState(createAttractionInitialState());
-  const [attractionSaving, setAttractionSaving] = useState(false);
-  const [managedAttractionId, setManagedAttractionId] = useState('');
-  const [managedQuizzes, setManagedQuizzes] = useState([]);
-  const [managedQuizzesLoading, setManagedQuizzesLoading] = useState(false);
-  const [adminQuizForm, setAdminQuizForm] = useState(createQuizInitialState());
-  const [adminQuizSaving, setAdminQuizSaving] = useState(false);
-  const [adminEditingQuizId, setAdminEditingQuizId] = useState(null);
-  const [adminQuizFormLoading, setAdminQuizFormLoading] = useState(false);
+  const [attractionForm, setAttractionForm] = useState({
+    name: '',
+    description: '',
+    region: 'București',
+    type: 0,
+    latitude: 0,
+    longitude: 0,
+    imageUrl: '',
+    rating: 0
+  });
 
-  const refreshSummary = useCallback(() => {
-    adminService
-      .getDashboard()
-      .then((data) => setSummary(normalizeSummary(data)))
-      .catch(() => setSummary(null));
-  }, []);
+  // Quiz Management
+  const [editingQuizId, setEditingQuizId] = useState(null);
+  const [quizForm, setQuizForm] = useState({
+    attractionId: 1,
+    title: '',
+    description: '',
+    difficultyLevel: 1,
+    timeLimit: 60,
+    questions: [createEmptyQuestion()]
+  });
 
-  const normalizeCollection = (items = []) =>
-    items.map((item) => ({
-      ...item,
-      status: toStatusString(item?.status)
-    }));
+  useEffect(() => {
+    const role = getUserRole();
+    if (role !== 'Administrator') {
+      navigate('/dashboard');
+    }
+    fetchAdminData();
+  }, [navigate]);
 
-  const refreshApplications = useCallback(async () => {
-    setLoadingApplications(true);
+  const fetchAdminData = async () => {
     try {
-      const data = await adminService.getApplications();
-      setApplications(normalizeCollection(data));
+      setLoading(true);
+      const [appRes, suggRes, statsRes, attrRes, quizRes] = await Promise.allSettled([
+        api.get('/admin/applications'),
+        api.get('/admin/suggestions'),
+        api.get('/admin/dashboard'),
+        api.get('/attractions?take=1000'), // Get all attractions
+        api.get('/quiz/all') // Get all quizzes
+      ]);
+
+      if (appRes.status === 'fulfilled') setApplications(appRes.value.data || []);
+      if (suggRes.status === 'fulfilled') setSuggestions(suggRes.value.data || []);
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+      if (attrRes.status === 'fulfilled') setAttractions(attrRes.value.data || []);
+      if (quizRes.status === 'fulfilled') setQuizzes(quizRes.value.data || []);
+
     } catch (err) {
-      console.error(err);
-      setError('Nu am putut încărca aplicațiile.');
+      console.error('Error loading admin data:', err);
     } finally {
-      setLoadingApplications(false);
-    }
-  }, []);
-
-  const refreshSuggestions = useCallback(async (filter) => {
-    setLoadingSuggestions(true);
-    try {
-      const data = await adminService.getSuggestions(filter);
-      setSuggestions(normalizeCollection(data));
-    } catch (err) {
-      console.error(err);
-      setError('Nu am putut încărca sugestiile.');
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshSummary();
-  }, [refreshSummary]);
-
-  useEffect(() => {
-    refreshApplications();
-  }, [refreshApplications]);
-
-  useEffect(() => {
-    refreshSuggestions(suggestionFilter);
-  }, [refreshSuggestions, suggestionFilter]);
-
-  const loadAttractions = useCallback(async () => {
-    setAttractionsLoading(true);
-    try {
-      const data = await adminService.getAttractions();
-      const list = Array.isArray(data) ? data : [];
-      setAttractions(list);
-      if (list.length > 0) {
-        const firstId = String(list[0].id);
-        setManagedAttractionId((prev) => prev || firstId);
-        setAdminQuizForm((prev) => ({ ...prev, attractionId: prev.attractionId || firstId }));
-      } else {
-        setManagedAttractionId('');
-        setAdminQuizForm(createQuizInitialState());
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Nu am putut încărca atracțiile.');
-    } finally {
-      setAttractionsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadAttractions();
-  }, [loadAttractions]);
-
-  const refreshManagedQuizzes = useCallback(async (attractionId) => {
-    if (!attractionId) {
-      setManagedQuizzes([]);
-      setManagedQuizzesLoading(false);
-      return;
-    }
-    setManagedQuizzesLoading(true);
-    try {
-      const data = await adminService.getQuizzesForAttraction(attractionId);
-      setManagedQuizzes(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-      setError('Nu am putut încărca quiz-urile pentru această atracție.');
-    } finally {
-      setManagedQuizzesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!managedAttractionId) return;
-    refreshManagedQuizzes(managedAttractionId);
-  }, [managedAttractionId, refreshManagedQuizzes]);
-
-  useEffect(() => {
-    if (!managedAttractionId) return;
-    setAdminQuizForm((prev) => ({ ...prev, attractionId: managedAttractionId }));
-  }, [managedAttractionId]);
-
-  const handleDecision = async (type, id, action) => {
-    const notes = window.prompt('Note pentru utilizator (opțional)', '') || '';
-    try {
-      if (type === 'application') {
-        await adminService.decideApplication(id, action, notes);
-        await refreshApplications();
-      } else {
-        await adminService.decideSuggestion(id, action, notes);
-        await refreshSuggestions(suggestionFilter);
-      }
-      refreshSummary();
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError('Acțiunea nu a putut fi finalizată.');
+      setLoading(false);
     }
   };
 
-  const handleAttractionFieldChange = (field, value) => {
-    setAttractionForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const resetAttractionForm = () => {
-    setEditingAttractionId(null);
-    setAttractionForm(createAttractionInitialState());
-  };
-
-  const handleEditAttraction = (attraction) => {
-    if (!attraction) return;
-    setEditingAttractionId(attraction.id);
-    setAttractionForm({
-      name: attraction.name || '',
-      description: attraction.description || '',
-      region: attraction.region || '',
-      imageUrl: attraction.imageUrl || '',
-      type: Number(attraction.type ?? attraction.typeId ?? ATTRACTION_TYPES[0].value),
-      latitude: attraction.latitude != null ? String(attraction.latitude) : '',
-      longitude: attraction.longitude != null ? String(attraction.longitude) : '',
-      rating: attraction.rating != null ? Number(attraction.rating) : 5
-    });
-  };
-
-  const handleAttractionSubmit = async (event) => {
-    event.preventDefault();
-    const payload = {
-      name: attractionForm.name.trim(),
-      description: attractionForm.description,
-      region: attractionForm.region,
-      imageUrl: attractionForm.imageUrl,
-      type: Number(attractionForm.type),
-      latitude: Number(attractionForm.latitude),
-      longitude: Number(attractionForm.longitude),
-      rating: Number(attractionForm.rating)
-    };
-
-    if (!payload.name || Number.isNaN(payload.latitude) || Number.isNaN(payload.longitude)) {
-      setError('Completează toate câmpurile și poziția geografică.');
-      return;
+  const handleApproveApp = async (appId) => {
+    try {
+      await api.post(`/admin/applications/${appId}/approve`, { Notes: 'Aprobat de admin' });
+      setStatus({ type: 'success', message: '✅ Aplicație aprobată!' });
+      fetchAdminData();
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ ' + (err.response?.data?.message || 'Eroare') });
     }
+  };
 
-    setAttractionSaving(true);
+  const handleRejectApp = async (appId) => {
+    try {
+      await api.post(`/admin/applications/${appId}/reject`, { Notes: 'Respins de admin' });
+      setStatus({ type: 'success', message: '✅ Aplicație respinsă!' });
+      fetchAdminData();
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Eroare' });
+    }
+  };
+
+  const handleApproveSuggestion = async (suggId) => {
+    try {
+      await api.post(`/admin/suggestions/${suggId}/approve`, { Notes: 'Aprobat de admin' });
+      setStatus({ type: 'success', message: '✅ Sugestie aprobată!' });
+      fetchAdminData();
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Eroare' });
+    }
+  };
+
+  const handleRejectSuggestion = async (suggId) => {
+    try {
+      await api.post(`/admin/suggestions/${suggId}/reject`, { Notes: 'Respins de admin' });
+      setStatus({ type: 'success', message: '✅ Sugestie respinsă!' });
+      fetchAdminData();
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Eroare' });
+    }
+  };
+
+  const handleSaveAttraction = async () => {
     try {
       if (editingAttractionId) {
-        await adminService.updateAttraction(editingAttractionId, payload);
+        // Update
+        await api.put(`/attractions/${editingAttractionId}`, attractionForm);
+        setStatus({ type: 'success', message: '✅ Atracție actualizată!' });
       } else {
-        await adminService.createAttraction(payload);
+        // Create
+        await api.post('/attractions', attractionForm);
+        setStatus({ type: 'success', message: '✅ Atracție creată!' });
       }
-      setError(null);
-      resetAttractionForm();
-      await loadAttractions();
+      setEditingAttractionId(null);
+      setAttractionForm({ name: '', description: '', region: 'București', type: 0, latitude: 0, longitude: 0, imageUrl: '', rating: 0 });
+      fetchAdminData();
     } catch (err) {
-      console.error(err);
-      setError('Nu am putut salva atracția.');
-    } finally {
-      setAttractionSaving(false);
+      setStatus({ type: 'error', message: '❌ ' + (err.response?.data?.message || 'Eroare') });
     }
   };
 
   const handleDeleteAttraction = async (id) => {
-    if (!window.confirm('Ștergi această atracție din catalog?')) return;
+    if (!window.confirm('Ești sigur?')) return;
     try {
-      await adminService.deleteAttraction(id);
-      setError(null);
-      if (editingAttractionId === id) {
-        resetAttractionForm();
-      }
-      await loadAttractions();
+      await api.delete(`/attractions/${id}`);
+      setStatus({ type: 'success', message: '✅ Atracție ștearsă!' });
+      fetchAdminData();
     } catch (err) {
-      console.error(err);
-      setError('Nu am putut șterge atracția.');
+      setStatus({ type: 'error', message: '❌ Eroare' });
     }
   };
 
-  const handleSelectManagedAttraction = (value) => {
-    setManagedAttractionId(value);
-    setAdminQuizForm((prev) => ({ ...prev, attractionId: value }));
-    if (adminEditingQuizId && value !== adminQuizForm.attractionId) {
-      setAdminEditingQuizId(null);
-    }
+  const handleEditAttraction = (attr) => {
+    setEditingAttractionId(attr.id);
+    setAttractionForm({
+      name: attr.name,
+      description: attr.description,
+      region: attr.region,
+      type: attr.type || 0,
+      latitude: attr.latitude || 0,
+      longitude: attr.longitude || 0,
+      imageUrl: attr.imageUrl || '',
+      rating: attr.rating || 0
+    });
+    setActiveTab('attractions');
   };
 
-  const handleAdminQuizFieldChange = (field, value) => {
-    setAdminQuizForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleAdminQuestionChange = (questionIndex, field, value) => {
-    setAdminQuizForm((prev) => ({
-      ...prev,
-      questions: prev.questions.map((question, idx) =>
-        idx === questionIndex ? { ...question, [field]: value } : question
-      )
-    }));
-  };
-
-  const handleAdminAnswerChange = (questionIndex, answerIndex, field, value) => {
-    setAdminQuizForm((prev) => ({
-      ...prev,
-      questions: prev.questions.map((question, idx) => {
-        if (idx !== questionIndex) return question;
-        return {
-          ...question,
-          answers: question.answers.map((answer, aIdx) =>
-            aIdx === answerIndex ? { ...answer, [field]: value } : answer
-          )
-        };
-      })
-    }));
-  };
-
-  const handleAdminMarkAnswerCorrect = (questionIndex, answerIndex) => {
-    setAdminQuizForm((prev) => ({
-      ...prev,
-      questions: prev.questions.map((question, idx) => {
-        if (idx !== questionIndex) return question;
-        return {
-          ...question,
-          answers: question.answers.map((answer, aIdx) => ({
-            ...answer,
-            isCorrect: aIdx === answerIndex
-          }))
-        };
-      })
-    }));
-  };
-
-  const handleAdminAddQuestion = () => {
-    setAdminQuizForm((prev) => ({
-      ...prev,
-      questions: [...prev.questions, createBlankQuestion()]
-    }));
-  };
-
-  const handleAdminRemoveQuestion = (index) => {
-    setAdminQuizForm((prev) => {
-      if (prev.questions.length === 1) return prev;
-      return {
-        ...prev,
-        questions: prev.questions.filter((_, idx) => idx !== index)
-      };
+  const updateQuestion = (index, patch) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => (i === index ? { ...q, ...patch } : q));
+      return { ...prev, questions };
     });
   };
 
-  const handleAdminAddAnswer = (questionIndex) => {
-    setAdminQuizForm((prev) => ({
-      ...prev,
-      questions: prev.questions.map((question, idx) => {
-        if (idx !== questionIndex) return question;
-        if (question.answers.length >= 6) return question;
-        return {
-          ...question,
-          answers: [...question.answers, createBlankAnswer(false)]
-        };
-      })
-    }));
+  const updateAnswer = (qIndex, aIndex, patch) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => {
+        if (i !== qIndex) return q;
+        const answers = q.answers.map((a, j) => (j === aIndex ? { ...a, ...patch } : a));
+        return { ...q, answers };
+      });
+      return { ...prev, questions };
+    });
   };
 
-  const handleAdminRemoveAnswer = (questionIndex, answerIndex) => {
-    setAdminQuizForm((prev) => ({
-      ...prev,
-      questions: prev.questions.map((question, idx) => {
-        if (idx !== questionIndex) return question;
-        if (question.answers.length <= 2) return question;
-        return {
-          ...question,
-          answers: question.answers.filter((_, aIdx) => aIdx !== answerIndex)
-        };
-      })
-    }));
+  const addQuestion = () => {
+    setQuizForm(prev => ({ ...prev, questions: [...prev.questions, createEmptyQuestion()] }));
   };
 
-  const resetAdminQuizForm = (attractionId) => {
-    setAdminEditingQuizId(null);
-    setAdminQuizForm(createQuizInitialState(attractionId || managedAttractionId));
+  const removeQuestion = (index) => {
+    setQuizForm(prev => ({ ...prev, questions: prev.questions.filter((_, i) => i !== index) }));
   };
 
-  const handleAdminQuizSubmit = async (event) => {
-    event.preventDefault();
-    if (!adminQuizForm.attractionId) {
-      setError('Selectează o atracție înainte de a crea un quiz.');
+  const addAnswer = (qIndex) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => i === qIndex ? { ...q, answers: [...q.answers, createEmptyAnswer()] } : q);
+      return { ...prev, questions };
+    });
+  };
+
+  const removeAnswer = (qIndex, aIndex) => {
+    setQuizForm(prev => {
+      const questions = prev.questions.map((q, i) => {
+        if (i !== qIndex) return q;
+        return { ...q, answers: q.answers.filter((_, j) => j !== aIndex) };
+      });
+      return { ...prev, questions };
+    });
+  };
+
+  const handleSaveQuiz = async () => {
+    if (!quizForm.title.trim() || !quizForm.description.trim()) {
+      setStatus({ type: 'error', message: '❌ Completează titlul și descrierea' });
       return;
     }
-
-    const hasInvalidQuestion = adminQuizForm.questions.some(
-      (question) => !question.answers.some((answer) => answer.isCorrect)
-    );
-    if (hasInvalidQuestion) {
-      setError('Fiecare întrebare trebuie să aibă un răspuns corect.');
+    if (!quizForm.questions.length) {
+      setStatus({ type: 'error', message: '❌ Adaugă cel puțin o întrebare' });
       return;
     }
-
-    const payload = {
-      attractionId: Number(adminQuizForm.attractionId),
-      title: adminQuizForm.title,
-      description: adminQuizForm.description,
-      difficultyLevel: Number(adminQuizForm.difficultyLevel),
-      timeLimit: Number(adminQuizForm.timeLimit),
-      questions: adminQuizForm.questions.map((question, qIdx) => ({
-        text: question.text,
-        pointsValue: Number(question.pointsValue),
-        order: qIdx + 1,
-        answers: question.answers.map((answer, aIdx) => ({
-          text: answer.text,
-          isCorrect: answer.isCorrect,
-          order: aIdx + 1
-        }))
-      }))
-    };
-
-    setAdminQuizSaving(true);
-    try {
-      if (adminEditingQuizId) {
-        await adminService.updateQuiz(adminEditingQuizId, payload);
-      } else {
-        await adminService.createQuiz(payload);
-      }
-      setError(null);
-      resetAdminQuizForm(adminQuizForm.attractionId);
-      await refreshManagedQuizzes(adminQuizForm.attractionId);
-    } catch (err) {
-      console.error(err);
-      setError('Nu am putut salva quiz-ul.');
-    } finally {
-      setAdminQuizSaving(false);
-    }
-  };
-
-  const handleAdminDeleteQuiz = async (quizId) => {
-    if (!window.confirm('Ștergi acest quiz?')) return;
-    try {
-      await adminService.deleteQuiz(quizId);
-      setError(null);
-      if (adminEditingQuizId === quizId) {
-        resetAdminQuizForm();
-      }
-      await refreshManagedQuizzes(managedAttractionId);
-    } catch (err) {
-      console.error(err);
-      setError('Nu am putut șterge quiz-ul.');
-    }
-  };
-
-  const handleAdminEditQuiz = async (quizId) => {
-    setAdminQuizFormLoading(true);
-    try {
-      const quizDetails = await adminService.getQuizDetails(quizId);
-      if (!quizDetails) {
-        setError('Nu am găsit detalii pentru acest quiz.');
+    for (const [idx, q] of quizForm.questions.entries()) {
+      if (!q.text.trim()) {
+        setStatus({ type: 'error', message: `❌ Întrebarea ${idx + 1} nu are text` });
         return;
       }
-
-      const ensureAnswers = (answersList) => {
-        let normalized = (answersList || [])
-          .slice()
-          .sort((a, b) => (a?.order || 0) - (b?.order || 0))
-          .map((answer) => ({
-            text: answer?.text || '',
-            isCorrect: Boolean(answer?.isCorrect)
-          }));
-        while (normalized.length < 2) {
-          normalized = [...normalized, createBlankAnswer(false)];
-        }
-        if (!normalized.some((answer) => answer.isCorrect)) {
-          normalized = normalized.map((answer, idx) => ({ ...answer, isCorrect: idx === 0 }));
-        }
-        return normalized;
+      if (!q.answers || q.answers.length < 2) {
+        setStatus({ type: 'error', message: `❌ Întrebarea ${idx + 1} trebuie să aibă minim 2 răspunsuri` });
+        return;
+      }
+      if (!q.answers.some(a => a.isCorrect)) {
+        setStatus({ type: 'error', message: `❌ Întrebarea ${idx + 1} trebuie să aibă un răspuns corect` });
+        return;
+      }
+    }
+    try {
+      const payload = {
+        AttractionId: Number(quizForm.attractionId) || 0,
+        Title: quizForm.title,
+        Description: quizForm.description,
+        DifficultyLevel: Number(quizForm.difficultyLevel) || 1,
+        TimeLimit: Number(quizForm.timeLimit) || 60,
+        Questions: quizForm.questions.map((q, qIdx) => ({
+          Text: q.text,
+          PointsValue: Number(q.pointsValue) || 10,
+          Order: q.order || qIdx + 1,
+          Answers: q.answers.map((a, aIdx) => ({
+            Text: a.text,
+            IsCorrect: Boolean(a.isCorrect),
+            Order: a.order || aIdx + 1
+          }))
+        }))
       };
 
-      const questions = (quizDetails.questions || [])
-        .slice()
-        .sort((a, b) => (a?.order || 0) - (b?.order || 0))
-        .map((question) => ({
-          text: question?.text || '',
-          pointsValue: question?.pointsValue || 10,
-          answers: ensureAnswers(question?.answers)
-        }));
-
-      const formQuestions = questions.length > 0 ? questions : [createBlankQuestion()];
-      const attractionId = String(quizDetails.attractionId);
-
-      setAdminEditingQuizId(quizId);
-      setManagedAttractionId(attractionId);
-      setAdminQuizForm({
-        attractionId,
-        title: quizDetails.title || '',
-        description: quizDetails.description || '',
-        difficultyLevel: Number(quizDetails.difficultyLevel) || 1,
-        timeLimit: Number(quizDetails.timeLimit) || 120,
-        questions: formQuestions
-      });
+      const method = editingQuizId ? 'PUT' : 'POST';
+      const url = editingQuizId ? `/quiz/${editingQuizId}` : '/quiz';
+      await api[method.toLowerCase()](url, payload);
+      setStatus({ type: 'success', message: `✅ Quiz ${editingQuizId ? 'actualizat' : 'creat'}!` });
+      setEditingQuizId(null);
+      setQuizForm({ attractionId: attractions[0]?.id || 1, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [createEmptyQuestion()] });
+      fetchAdminData();
     } catch (err) {
-      console.error(err);
-      setError('Nu am putut încărca quiz-ul selectat.');
-    } finally {
-      setAdminQuizFormLoading(false);
+      setStatus({ type: 'error', message: '❌ ' + (err.response?.data?.message || 'Eroare') });
     }
   };
 
-  const handleAdminCancelQuizEdit = () => {
-    resetAdminQuizForm();
+  const handleDeleteQuiz = async (id) => {
+    if (!window.confirm('Ești sigur că vrei să ștergi acest quiz?')) return;
+    try {
+      await api.delete(`/quiz/${id}`);
+      setStatus({ type: 'success', message: '✅ Quiz șters!' });
+      fetchAdminData();
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Eroare' });
+    }
   };
 
-  const visibleApplications = useMemo(() => {
-    if (!applicationFilter) return applications;
-    return applications.filter((app) => app.status === applicationFilter);
-  }, [applications, applicationFilter]);
+  const handleEditQuiz = async (quiz) => {
+    try {
+      const res = await api.get(`/quiz/${quiz.id}/manage`);
+      const data = res.data || {};
+      setEditingQuizId(quiz.id);
+      setQuizForm({
+        attractionId: data.attractionId || quiz.attractionId || 1,
+        title: data.title || quiz.title,
+        description: data.description || quiz.description,
+        difficultyLevel: data.difficultyLevel || quiz.difficultyLevel || 1,
+        timeLimit: data.timeLimit || quiz.timeLimit || 60,
+        questions: (data.questions || []).map(q => ({
+          text: q.text,
+          pointsValue: q.pointsValue,
+          order: q.order,
+          answers: (q.answers || []).map(a => ({
+            text: a.text,
+            isCorrect: a.isCorrect,
+            order: a.order
+          }))
+        }))
+      });
+      setActiveTab('quizzes');
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Nu am putut încărca quiz-ul pentru editare' });
+    }
+  };
 
-  const managedAttraction = useMemo(() => (
-    attractions.find((item) => String(item.id) === String(managedAttractionId))
-  ), [attractions, managedAttractionId]);
+  if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text)' }}>Se încarcă...</div>;
 
   return (
-    <div style={{ padding: '32px 48px', fontFamily: 'RoviaUI, Inter, system-ui' }}>
-      <header style={{ marginBottom: 32 }}>
-        <p style={{ textTransform: 'uppercase', letterSpacing: 3, fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Panou administrativ</p>
-        <h1 style={{ fontSize: 34, margin: 0, color: 'var(--text)' }}>Control Center</h1>
-        <p style={{ maxWidth: 640, color: 'var(--muted)', marginTop: 12 }}>
-          Monitorizează aplicațiile promotorilor, aprobă sau respinge propuneri și sincronizează oferta turistică a platformei.
-        </p>
-      </header>
-
-      {error && (
-        <div style={{
-          marginBottom: 20,
-          padding: '12px 16px',
-          borderRadius: 12,
-          border: '1px solid #fecaca',
-          background: 'rgba(248,113,113,0.12)',
-          color: '#b91c1c'
-        }}>
-          {error}
-        </div>
-      )}
-
-      <section style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: 18,
-        marginBottom: 36
-      }}>
-        <Card title="Aplicații în așteptare" value={summary?.PendingApplications ?? 0} accent="#facc15" />
-        <Card title="Aplicații aprobate" value={summary?.ApprovedApplications ?? 0} accent="#22c55e" />
-        <Card title="Aplicații respinse" value={summary?.RejectedApplications ?? 0} accent="#ef4444" />
-        <Card title="Sugestii în așteptare" value={summary?.PendingSuggestions ?? 0} accent="#fb7185" />
-        <Card title="Aprobate săptămâna aceasta" value={summary?.ApprovedThisWeek ?? 0} accent="#0ea5e9" />
-      </section>
-
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 32 }}>
-        <div style={{ borderRadius: 24, padding: 24, border: '1px solid var(--border)', background: 'var(--card-bg)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0 }}>Aplicații Promotori</h2>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {STATUS_FILTERS.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setApplicationFilter(status)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 999,
-                    border: '1px solid var(--border)',
-                    background: applicationFilter === status ? 'var(--accent)' : 'transparent',
-                    color: applicationFilter === status ? '#fff' : 'var(--text)',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            {loadingApplications && <p style={{ color: 'var(--muted)' }}>Se încarcă...</p>}
-            {!loadingApplications && visibleApplications.length === 0 && (
-              <p style={{ color: 'var(--muted)' }}>Nu există aplicații pentru filtrul curent.</p>
-            )}
-            {!loadingApplications && visibleApplications.map((app) => (
-              <div key={app.id} style={{
-                borderRadius: 16,
-                border: '1px solid var(--border)',
-                padding: 16,
-                marginBottom: 12,
-                background: 'var(--topbar-bg)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <div>
-                    <h3 style={{ margin: '0 0 4px 0' }}>{app.companyName}</h3>
-                    <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>{app.contactEmail}</p>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(app.submittedAt).toLocaleDateString('ro-RO')}</span>
-                </div>
-                <p style={{ marginTop: 10, fontSize: 14 }}>{app.motivation}</p>
-                <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
-                  <button
-                    onClick={() => handleDecision('application', app.id, 'approve')}
-                    disabled={app.status !== 'Pending'}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: app.status === 'Pending' ? '#22c55e' : '#9ca3af',
-                      color: '#fff',
-                      cursor: app.status === 'Pending' ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    Aprobă
-                  </button>
-                  <button
-                    onClick={() => handleDecision('application', app.id, 'reject')}
-                    disabled={app.status !== 'Pending'}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: app.status === 'Pending' ? '#ef4444' : '#9ca3af',
-                      color: '#fff',
-                      cursor: app.status === 'Pending' ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    Respinge
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+    <div style={{
+      minHeight: 'calc(100vh - 56px)',
+      background: 'var(--bg)',
+      paddingLeft: '80px',
+      paddingTop: '32px',
+      paddingBottom: '40px',
+      color: 'var(--text)'
+    }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px' }}>
+        {/* HEADER */}
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '36px', fontWeight: '800', margin: '0 0 12px 0', background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>🛡️ Panou Administrator</h1>
+          <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>Controlul complet al platformei</p>
         </div>
 
-        <div style={{ borderRadius: 24, padding: 24, border: '1px solid var(--border)', background: 'var(--card-bg)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0 }}>Sugestii atracții</h2>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {STATUS_FILTERS.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setSuggestionFilter(status)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 999,
-                    border: '1px solid var(--border)',
-                    background: suggestionFilter === status ? 'var(--accent)' : 'transparent',
-                    color: suggestionFilter === status ? '#fff' : 'var(--text)',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {status}
-                </button>
-              ))}
+        {/* STATUS */}
+        {status && (
+          <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', border: `2px solid ${status.type === 'success' ? 'var(--success)' : 'var(--error)'}`, background: status.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: status.type === 'success' ? 'var(--success)' : 'var(--error)' }}>
+            {status.message}
+          </div>
+        )}
+
+        {/* STATS */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+          {[
+            { label: 'Aplicații Pendente', value: applications.filter(a => a.status === 0).length, color: 'var(--warning)' },
+            { label: 'Sugestii Pendente', value: suggestions.filter(s => s.status === 0).length, color: 'var(--warning)' },
+            { label: 'Total Atracții', value: attractions.length, color: 'var(--accent)' },
+            { label: 'Total Utilizatori', value: stats?.totalUsers || 0, color: 'var(--success)' }
+          ].map((stat, i) => (
+            <div key={i} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+              <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px' }}>{stat.label}</p>
+              <p style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '800', color: stat.color }}>{stat.value}</p>
             </div>
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            {loadingSuggestions && <p style={{ color: 'var(--muted)' }}>Se încarcă...</p>}
-            {!loadingSuggestions && suggestions.length === 0 && (
-              <p style={{ color: 'var(--muted)' }}>Nu există sugestii pentru filtrul curent.</p>
-            )}
-            {!loadingSuggestions && suggestions.map((suggestion) => (
-              <div key={suggestion.id} style={{
-                borderRadius: 16,
-                border: '1px solid var(--border)',
-                padding: 16,
-                marginBottom: 12,
-                background: 'var(--topbar-bg)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <div>
-                    <h3 style={{ margin: '0 0 4px 0' }}>{suggestion.title}</h3>
-                    <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>Propus de {suggestion.promoterName || 'anonim'}</p>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(suggestion.submittedAt).toLocaleDateString('ro-RO')}</span>
-                </div>
-                <p style={{ marginTop: 10, fontSize: 14 }}>{suggestion.details}</p>
-                {suggestion.createsNewAttraction ? (
-                  <p style={{ fontSize: 13, color: 'var(--muted)' }}>Atracție nouă: {suggestion.proposedName}</p>
-                ) : (
-                  <p style={{ fontSize: 13, color: 'var(--muted)' }}>Actualizare pentru ID #{suggestion.attractionId}</p>
-                )}
-                {suggestion.adminResponse && (
-                  <p style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>Notă precedentă: {suggestion.adminResponse}</p>
-                )}
-                <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
-                  <button
-                    onClick={() => handleDecision('suggestion', suggestion.id, 'approve')}
-                    disabled={suggestion.status !== 'Pending'}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: suggestion.status === 'Pending' ? '#2563eb' : '#9ca3af',
-                      color: '#fff',
-                      cursor: suggestion.status === 'Pending' ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    Aprobare rapidă
-                  </button>
-                  <button
-                    onClick={() => handleDecision('suggestion', suggestion.id, 'reject')}
-                    disabled={suggestion.status !== 'Pending'}
-                    style={{
-                      flex: 1,
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: suggestion.status === 'Pending' ? '#ef4444' : '#9ca3af',
-                      color: '#fff',
-                      cursor: suggestion.status === 'Pending' ? 'pointer' : 'not-allowed'
-                    }}
-                  >
-                    Respinge
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section style={{ marginTop: 48 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap', marginBottom: 24 }}>
-          <div>
-            <p style={{ margin: 0, textTransform: 'uppercase', letterSpacing: 3, fontSize: 12, color: 'var(--muted)' }}>Catalog & Experiențe</p>
-            <h2 style={{ margin: '6px 0 0 0', fontSize: 28 }}>Gestionează atracțiile și quiz-urile oficiale</h2>
-            <p style={{ maxWidth: 620, color: 'var(--muted)', marginTop: 10 }}>
-              Actualizează rapid inventarul RoVia și lansează provocări interactive pentru fiecare locație. Orice schimbare devine activă imediat pentru utilizatori.
-            </p>
-          </div>
+          ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 420px) minmax(360px, 1fr)', gap: 32, alignItems: 'flex-start' }}>
-          <div style={{ borderRadius: 24, border: '1px solid var(--border)', background: 'var(--card-bg)', padding: 22 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <h3 style={{ margin: 0 }}>Atracții aprobate</h3>
-              <button
-                type="button"
-                onClick={loadAttractions}
-                style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '6px 12px', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}
-              >
-                Reîncarcă
-              </button>
-            </div>
-            <p style={{ marginTop: 8, color: 'var(--muted)', fontSize: 13 }}>Total: {attractions.length}</p>
-
-            {attractionsLoading && <p style={{ color: 'var(--muted)' }}>Se încarcă lista atracțiilor...</p>}
-            {!attractionsLoading && attractions.length === 0 && (
-              <p style={{ color: 'var(--muted)' }}>Nu există încă atracții în baza curentă.</p>
-            )}
-
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 420, overflowY: 'auto', paddingRight: 6 }}>
-              {attractions.map((attr) => {
-                const typeLabel = ATTRACTION_TYPES.find((option) => Number(option.value) === Number(attr.type ?? attr.typeId))?.label || '—';
-                return (
-                  <div key={attr.id} style={{ border: '1px solid var(--border)', borderRadius: 18, padding: 14, background: 'var(--topbar-bg)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                      <div>
-                        <h4 style={{ margin: 0 }}>{attr.name}</h4>
-                        <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--muted)' }}>{attr.region || 'Fără regiune'} · {typeLabel}</p>
-                      </div>
-                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>#{attr.id}</span>
-                    </div>
-                    <p style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>{attr.description?.slice(0, 120) || 'Fără descriere'}</p>
-                    <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                      <button
-                        type="button"
-                        onClick={() => handleEditAttraction(attr)}
-                        style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 10, padding: '8px 0', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        Editează
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAttraction(attr.id)}
-                        style={{ flex: 1, border: 'none', borderRadius: 10, padding: '8px 0', background: 'rgba(239,68,68,0.15)', color: '#b91c1c', fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        Șterge
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ borderRadius: 24, border: '1px solid var(--border)', background: 'var(--card-bg)', padding: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div>
-                <h3 style={{ margin: 0 }}>{editingAttractionId ? 'Editează atracția' : 'Adaugă atracție nouă'}</h3>
-                <p style={{ margin: '6px 0 0 0', color: 'var(--muted)', fontSize: 13 }}>
-                  Completează coordonatele și tipologia pentru a publica instant în catalog.
-                </p>
-              </div>
-              {editingAttractionId && (
-                <button
-                  type="button"
-                  onClick={resetAttractionForm}
-                  style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Renunță la editare
-                </button>
-              )}
-            </div>
-
-            <form onSubmit={handleAttractionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Nume</label>
-                  <input
-                    type="text"
-                    value={attractionForm.name}
-                    onChange={(e) => handleAttractionFieldChange('name', e.target.value)}
-                    required
-                    style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Regiune</label>
-                  <select
-                    value={attractionForm.region}
-                    onChange={(e) => handleAttractionFieldChange('region', e.target.value)}
-                    style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                  >
-                    <option value="">Selectează regiunea</option>
-                    {REGION_LIST.map((region) => (
-                      <option key={region} value={region}>{region}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Imagine (URL)</label>
-                <input
-                  type="text"
-                  value={attractionForm.imageUrl}
-                  onChange={(e) => handleAttractionFieldChange('imageUrl', e.target.value)}
-                  style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Descriere</label>
-                <textarea
-                  rows={3}
-                  value={attractionForm.description}
-                  onChange={(e) => handleAttractionFieldChange('description', e.target.value)}
-                  style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Tip</label>
-                  <select
-                    value={attractionForm.type}
-                    onChange={(e) => handleAttractionFieldChange('type', Number(e.target.value))}
-                    style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                  >
-                    {ATTRACTION_TYPES.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Rating</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={5}
-                    step={0.1}
-                    value={attractionForm.rating}
-                    onChange={(e) => handleAttractionFieldChange('rating', Number(e.target.value))}
-                    style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Latitudine</label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={attractionForm.latitude}
-                    onChange={(e) => handleAttractionFieldChange('latitude', e.target.value)}
-                    required
-                    style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Longitudine</label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={attractionForm.longitude}
-                    onChange={(e) => handleAttractionFieldChange('longitude', e.target.value)}
-                    required
-                    style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={attractionSaving}
-                style={{
-                  border: 'none',
-                  borderRadius: 14,
-                  padding: '12px 18px',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  cursor: attractionSaving ? 'wait' : 'pointer',
-                  background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-                  color: '#fff'
-                }}
-              >
-                {attractionSaving ? 'Se salvează...' : editingAttractionId ? 'Actualizează atracția' : 'Publică atracția'}
-              </button>
-            </form>
-          </div>
+        {/* TABS */}
+        <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '24px', flexWrap: 'wrap' }}>
+          {['dashboard', 'applications', 'suggestions', 'attractions', 'quizzes'].map(tab => (
+            <button key={tab} onClick={() => { setActiveTab(tab); setEditingAttractionId(null); }} style={{ padding: '12px 20px', background: activeTab === tab ? 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)' : 'transparent', color: activeTab === tab ? 'white' : 'var(--muted)', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontWeight: '600', fontSize: '14px', transition: 'all 200ms ease' }}>
+              {tab === 'dashboard' ? '📊 Overview' : tab === 'applications' ? '📋 Aplicații' : tab === 'suggestions' ? '💡 Sugestii' : tab === 'attractions' ? '🎯 Atracții' : '📝 Quiz-uri'}
+            </button>
+          ))}
         </div>
 
-        <div style={{ marginTop: 40, borderRadius: 28, padding: 28, border: '1px solid var(--border)', background: 'var(--card-bg)', boxShadow: '0 18px 40px rgba(15,23,42,0.08)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap' }}>
-            <div>
-              <p style={{ margin: 0, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 3, fontSize: 12 }}>Quiz Builder (Admin)</p>
-              <h3 style={{ margin: '6px 0 0 0', fontSize: 24 }}>Experiențe oficiale pentru fiecare atracție</h3>
-              <p style={{ marginTop: 8, color: 'var(--muted)', maxWidth: 540 }}>Selectează o atracție, revizuiește quiz-urile existente și publică variante noi cu niveluri de dificultate diferite.</p>
-            </div>
-            <div style={{ minWidth: 260 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' }}>Atracție selectată</label>
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <select
-                  value={managedAttractionId}
-                  onChange={(e) => handleSelectManagedAttraction(e.target.value)}
-                  disabled={attractionsLoading || attractions.length === 0}
-                  style={{ flex: 1, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                >
-                  {attractions.length === 0 && <option value="">Nu există atracții</option>}
-                  {attractions.map((attr) => (
-                    <option key={attr.id} value={attr.id}>{attr.name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={loadAttractions}
-                  style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '0 16px', background: 'var(--topbar-bg)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Reîncarcare
-                </button>
-              </div>
-              {managedAttraction && (
-                <p style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)' }}>
-                  {managedAttraction.region || 'Fără regiune'} · {managedAttraction.typeName || '—'}
-                </p>
-              )}
-            </div>
+        {/* CONTENT */}
+        {activeTab === 'dashboard' && (
+          <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <h2 style={{ margin: 0, marginBottom: '16px' }}>Pregled Sistem</h2>
+            <p style={{ color: 'var(--muted)' }}>Selectează o secțiune din meniu pentru a gestiona conținutul platformei.</p>
           </div>
+        )}
 
-          {attractions.length === 0 ? (
-            <div style={{ marginTop: 20, padding: 24, borderRadius: 20, border: '1px dashed var(--border)', background: 'rgba(15,118,110,0.06)' }}>
-              <p style={{ margin: 0, color: 'var(--text)' }}>Adaugă cel puțin o atracție pentru a construi quiz-uri.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(320px, 1fr)', gap: 28, marginTop: 28 }}>
-              <div style={{ border: '1px solid var(--border)', borderRadius: 22, padding: 20, background: 'var(--topbar-bg)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div>
-                    <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>Quiz-uri publicate</p>
-                    <h4 style={{ margin: '4px 0 0 0' }}>{managedQuizzes.length}</h4>
-                  </div>
-                  {managedQuizzesLoading && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Actualizăm...</span>}
-                </div>
-
-                {managedQuizzesLoading && managedQuizzes.length === 0 && (
-                  <p style={{ color: 'var(--muted)' }}>Se încarcă...</p>
-                )}
-
-                {!managedQuizzesLoading && managedQuizzes.length === 0 && (
-                  <p style={{ color: 'var(--muted)' }}>Nu există încă quiz-uri pentru această atracție.</p>
-                )}
-
-                {!managedQuizzesLoading && managedQuizzes.map((quiz) => {
-                  const questionTotal = quiz.questions?.length ?? quiz.questionCount ?? 0;
-                  const difficultyLabel = DIFFICULTY_OPTIONS.find((opt) => Number(opt.value) === Number(quiz.difficultyLevel))?.label || '—';
-                  return (
-                    <div key={quiz.id} style={{ borderRadius: 18, border: '1px solid var(--border)', padding: 14, marginTop: 12, background: 'var(--card-bg)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                        <div>
-                          <h5 style={{ margin: 0 }}>{quiz.title}</h5>
-                          <p style={{ margin: '4px 0 0 0', fontSize: 13, color: 'var(--muted)' }}>{quiz.description || 'Fără descriere'}</p>
-                        </div>
-                        <span style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: 999, fontSize: 12, background: 'rgba(14,165,233,0.15)', color: '#0ea5e9', fontWeight: 600 }}>{difficultyLabel}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>
-                        <span>{questionTotal} întrebări</span>
-                        <span>•</span>
-                        <span>{quiz.timeLimit || 0} sec</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                        <button
-                          type="button"
-                          onClick={() => handleAdminEditQuiz(quiz.id)}
-                          style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 10, padding: '8px 0', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Editează
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAdminDeleteQuiz(quiz.id)}
-                          style={{ flex: 1, border: 'none', borderRadius: 10, padding: '8px 0', background: 'rgba(239,68,68,0.15)', color: '#b91c1c', fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Șterge
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ borderRadius: 24, border: '1px solid var(--border)', padding: 24, background: 'var(--topbar-bg)', position: 'relative' }}>
-                {adminQuizFormLoading && (
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: 24, backdropFilter: 'blur(2px)', background: 'rgba(15,23,42,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600 }}>
-                    Se încarcă detaliile quiz-ului...
-                  </div>
-                )}
-                <form onSubmit={handleAdminQuizSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div>
-                    <h4 style={{ margin: 0 }}>{adminEditingQuizId ? 'Editează quiz-ul' : 'Publică un quiz nou'}</h4>
-                    <p style={{ margin: '6px 0 0 0', color: 'var(--muted)', fontSize: 13 }}>
-                      Minim două întrebări, fiecare cu un răspuns corect.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Titlu</label>
-                    <input
-                      type="text"
-                      value={adminQuizForm.title}
-                      onChange={(e) => handleAdminQuizFieldChange('title', e.target.value)}
-                      required
-                      style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Descriere</label>
-                    <textarea
-                      value={adminQuizForm.description}
-                      onChange={(e) => handleAdminQuizFieldChange('description', e.target.value)}
-                      rows={2}
-                      style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
+        {activeTab === 'applications' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Aplicații Promotor</h2>
+            {applications.length === 0 ? (
+              <p style={{ color: 'var(--muted)' }}>Nicio aplicație pentru review.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {applications.map(app => (
+                  <div key={app.id} style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border)', background: app.status === 0 ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(0, 111, 238, 0.05))' : app.status === 1 ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(0, 111, 238, 0.05))' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(0, 111, 238, 0.05))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Dificultate</label>
-                      <select
-                        value={adminQuizForm.difficultyLevel}
-                        onChange={(e) => handleAdminQuizFieldChange('difficultyLevel', Number(e.target.value))}
-                        style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
-                      >
-                        {DIFFICULTY_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
+                      <p style={{ margin: 0, fontWeight: '600' }}>{app.companyName || 'Companie'}</p>
+                      <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '12px' }}>{app.contactEmail}</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>Motivație: {app.motivation}</p>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Limită timp (secunde)</label>
-                      <input
-                        type="number"
-                        min={30}
-                        max={600}
-                        value={adminQuizForm.timeLimit}
-                        onChange={(e) => handleAdminQuizFieldChange('timeLimit', Number(e.target.value))}
-                        style={{ width: '100%', marginTop: 6, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }}
-                      />
-                    </div>
-                  </div>
-
-                  {adminQuizForm.questions.map((question, qIdx) => (
-                    <div key={`admin-question-${qIdx}`} style={{ border: '1px solid var(--border)', borderRadius: 18, padding: 16, background: 'var(--card-bg)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                        <h5 style={{ margin: 0 }}>Întrebarea #{qIdx + 1}</h5>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input
-                            type="number"
-                            min={5}
-                            max={50}
-                            value={question.pointsValue}
-                            onChange={(e) => handleAdminQuestionChange(qIdx, 'pointsValue', Number(e.target.value))}
-                            style={{ width: 72, padding: '6px 10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleAdminRemoveQuestion(qIdx)}
-                            disabled={adminQuizForm.questions.length === 1}
-                            style={{ border: 'none', background: 'rgba(248,113,113,0.12)', color: '#b91c1c', borderRadius: 10, padding: '6px 10px', fontWeight: 600, cursor: adminQuizForm.questions.length === 1 ? 'not-allowed' : 'pointer' }}
-                          >
-                            Elimină
-                          </button>
-                        </div>
+                    {app.status === 0 && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => handleApproveApp(app.id)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--success)', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✓ Aprob</button>
+                        <button onClick={() => handleRejectApp(app.id)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--error)', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✗ Refuz</button>
                       </div>
-                      <textarea
-                        value={question.text}
-                        onChange={(e) => handleAdminQuestionChange(qIdx, 'text', e.target.value)}
-                        rows={2}
-                        style={{ width: '100%', marginTop: 10, padding: '10px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                        placeholder="Introduce întrebarea aici"
-                      />
-
-                      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {question.answers.map((answer, aIdx) => (
-                          <div key={`admin-answer-${qIdx}-${aIdx}`} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                            <input
-                              type="text"
-                              value={answer.text}
-                              onChange={(e) => handleAdminAnswerChange(qIdx, aIdx, 'text', e.target.value)}
-                              placeholder={`Răspuns #${aIdx + 1}`}
-                              style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--topbar-bg)', color: 'var(--text)' }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleAdminMarkAnswerCorrect(qIdx, aIdx)}
-                              style={{
-                                border: 'none',
-                                padding: '8px 12px',
-                                borderRadius: 999,
-                                background: answer.isCorrect ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.3)',
-                                color: answer.isCorrect ? '#15803d' : '#475569',
-                                fontWeight: 600,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {answer.isCorrect ? 'Corectă' : 'Marchează'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAdminRemoveAnswer(qIdx, aIdx)}
-                              disabled={question.answers.length <= 2}
-                              style={{
-                                border: 'none',
-                                padding: '8px 10px',
-                                borderRadius: 10,
-                                background: 'transparent',
-                                color: question.answers.length <= 2 ? '#94a3b8' : '#b91c1c',
-                                fontWeight: 600,
-                                cursor: question.answers.length <= 2 ? 'not-allowed' : 'pointer'
-                              }}
-                            >
-                              −
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => handleAdminAddAnswer(qIdx)}
-                          style={{ alignSelf: 'flex-start', border: '1px dashed var(--border)', borderRadius: 999, padding: '6px 12px', background: 'transparent', color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}
-                        >
-                          + Răspuns
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  <button
-                    type="button"
-                    onClick={handleAdminAddQuestion}
-                    style={{ border: '1px dashed var(--border)', borderRadius: 16, padding: '10px 14px', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    + Adaugă o întrebare
-                  </button>
-
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {adminEditingQuizId && (
-                      <button
-                        type="button"
-                        onClick={handleAdminCancelQuizEdit}
-                        style={{ border: '1px solid var(--border)', borderRadius: 14, padding: '10px 18px', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        Renunță la editare
-                      </button>
                     )}
-                    <button
-                      type="submit"
-                      disabled={adminQuizSaving || adminQuizFormLoading}
-                      style={{
-                        border: 'none',
-                        borderRadius: 14,
-                        padding: '12px 18px',
-                        fontWeight: 600,
-                        fontSize: 15,
-                        cursor: adminQuizSaving ? 'wait' : 'pointer',
-                        background: 'linear-gradient(135deg, #16a34a, #22d3ee)',
-                        color: '#fff',
-                        minWidth: 200
-                      }}
-                    >
-                      {adminQuizSaving ? 'Se salvează...' : adminEditingQuizId ? 'Actualizează quiz-ul' : 'Publică quiz-ul'}
-                    </button>
+                    {app.status === 1 && <span style={{ fontSize: '18px' }}>✅</span>}
+                    {app.status === 2 && <span style={{ fontSize: '18px' }}>❌</span>}
                   </div>
-                </form>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'suggestions' && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Sugestii Atracții</h2>
+            {suggestions.length === 0 ? (
+              <p style={{ color: 'var(--muted)' }}>Nicio sugestie pentru review.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {suggestions.map(sugg => (
+                  <div key={sugg.id} style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: '600' }}>{sugg.title}</p>
+                      <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '12px' }}>{sugg.details}</p>
+                      {sugg.createsNewAttraction && <span style={{ fontSize: '11px', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '4px' }}>Atracție Nouă</span>}
+                    </div>
+                    {sugg.status === 0 && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => handleApproveSuggestion(sugg.id)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--success)', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✓ Aprob</button>
+                        <button onClick={() => handleRejectSuggestion(sugg.id)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--error)', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✗ Refuz</button>
+                      </div>
+                    )}
+                    {sugg.status === 1 && <span style={{ fontSize: '18px' }}>✅</span>}
+                    {sugg.status === 2 && <span style={{ fontSize: '18px' }}>❌</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'attractions' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+            {/* ADD/EDIT FORM */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', height: 'fit-content' }}>
+              <h2 style={{ margin: 0, marginBottom: '16px', fontSize: '18px' }}>{editingAttractionId ? '✏️ Editează' : '➕ Adaugă'} Atracție</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Nume</label>
+                  <input type="text" value={attractionForm.name} onChange={(e) => setAttractionForm({...attractionForm, name: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Descriere</label>
+                  <textarea rows="3" value={attractionForm.description} onChange={(e) => setAttractionForm({...attractionForm, description: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Regiune</label>
+                  <select value={attractionForm.region} onChange={(e) => setAttractionForm({...attractionForm, region: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
+                    {['București', 'Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Oltenia', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Tip</label>
+                  <select value={attractionForm.type} onChange={(e) => setAttractionForm({...attractionForm, type: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
+                    <option value="0">Naturală</option>
+                    <option value="1">Culturală</option>
+                    <option value="2">Divertisment</option>
+                    <option value="3">Istorică</option>
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Lat</label>
+                    <input type="number" value={attractionForm.latitude} onChange={(e) => setAttractionForm({...attractionForm, latitude: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Long</label>
+                    <input type="number" value={attractionForm.longitude} onChange={(e) => setAttractionForm({...attractionForm, longitude: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Imagine (URL)</label>
+                  <input type="text" value={attractionForm.imageUrl} onChange={(e) => setAttractionForm({...attractionForm, imageUrl: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={handleSaveAttraction} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>💾 Salvează</button>
+                  {editingAttractionId && (
+                    <button onClick={() => setEditingAttractionId(null)} style={{ flex: 1, padding: '10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>✗ Anulează</button>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </section>
+
+            {/* ATTRACTIONS LIST */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ margin: 0, marginBottom: '16px', fontSize: '18px' }}>Atracții ({attractions.length})</h2>
+              {attractions.length === 0 ? (
+                <p style={{ color: 'var(--muted)' }}>Nicio atracție.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '600px', overflowY: 'auto' }}>
+                  {attractions.map(attr => (
+                    <div key={attr.id} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: '600', fontSize: '14px' }}>{attr.name}</p>
+                        <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '12px' }}>{attr.region}</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => handleEditAttraction(attr)} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'var(--accent)', color: 'white', fontSize: '11px', cursor: 'pointer' }}>✏️</button>
+                        <button onClick={() => handleDeleteAttraction(attr.id)} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'var(--error)', color: 'white', fontSize: '11px', cursor: 'pointer' }}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'quizzes' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+            {/* QUIZ FORM */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', height: 'fit-content' }}>
+              <h2 style={{ margin: 0, marginBottom: '16px', fontSize: '18px' }}>{editingQuizId ? '✏️ Editează' : '➕ Adaugă'} Quiz</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Atracție</label>
+                  <select value={quizForm.attractionId} onChange={(e) => setQuizForm({...quizForm, attractionId: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
+                    {attractions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Titlu</label>
+                  <input type="text" value={quizForm.title} onChange={(e) => setQuizForm({...quizForm, title: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Descriere</label>
+                  <textarea rows="3" value={quizForm.description} onChange={(e) => setQuizForm({...quizForm, description: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Dificultate</label>
+                    <select value={quizForm.difficultyLevel} onChange={(e) => setQuizForm({...quizForm, difficultyLevel: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
+                      <option value="1">Ușor</option>
+                      <option value="2">Mediu</option>
+                      <option value="3">Greu</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Timp Limită (s)</label>
+                    <input type="number" value={quizForm.timeLimit} onChange={(e) => setQuizForm({...quizForm, timeLimit: parseInt(e.target.value) || 60})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                  </div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Întrebări</label>
+                    <button onClick={addQuestion} style={{ padding: '6px 10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>+ Întrebare</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {quizForm.questions.map((q, qIndex) => (
+                      <div key={qIndex} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                          <input type="text" placeholder={`Întrebarea ${qIndex + 1}`} value={q.text} onChange={(e) => updateQuestion(qIndex, { text: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                          <input type="number" placeholder="Puncte" value={q.pointsValue} onChange={(e) => updateQuestion(qIndex, { pointsValue: parseInt(e.target.value) || 10 })} style={{ width: '90px', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                          <button onClick={() => removeQuestion(qIndex)} style={{ padding: '0 10px', background: 'var(--error)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✗</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {q.answers.map((a, aIndex) => (
+                            <div key={aIndex} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input type="text" placeholder={`Răspuns ${aIndex + 1}`} value={a.text} onChange={(e) => updateAnswer(qIndex, aIndex, { text: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                                <input type="checkbox" checked={a.isCorrect} onChange={(e) => updateAnswer(qIndex, aIndex, { isCorrect: e.target.checked })} />
+                                Corect
+                              </label>
+                              <button onClick={() => removeAnswer(qIndex, aIndex)} style={{ padding: '0 10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>✗</button>
+                            </div>
+                          ))}
+                          <button onClick={() => addAnswer(qIndex)} style={{ alignSelf: 'flex-start', padding: '6px 10px', background: 'var(--card-bg)', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--muted)' }}>+ Răspuns</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={handleSaveQuiz} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>💾 Salvează</button>
+                  {editingQuizId && (
+                    <button onClick={() => { setEditingQuizId(null); setQuizForm({ attractionId: attractions[0]?.id || 1, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [createEmptyQuestion()] }); }} style={{ flex: 1, padding: '10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>✗ Anulează</button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* QUIZZES LIST */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+              <h2 style={{ margin: 0, marginBottom: '16px', fontSize: '18px' }}>Quiz-uri ({quizzes.length})</h2>
+              {quizzes.length === 0 ? (
+                <p style={{ color: 'var(--muted)' }}>Niciun quiz.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '600px', overflowY: 'auto' }}>
+                  {quizzes.map(quiz => (
+                    <div key={quiz.id} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: '600', fontSize: '14px' }}>{quiz.title}</p>
+                        <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '12px' }}>Atracție: {attractions.find(a => a.id === quiz.attractionId)?.name || 'Necunoscută'}</p>
+                        <p style={{ margin: '2px 0 0 0', color: 'var(--muted)', fontSize: '11px' }}>Dificultate: {['Ușor', 'Mediu', 'Greu'][quiz.difficultyLevel - 1] || 'Ușor'}</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => handleEditQuiz(quiz)} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'var(--accent)', color: 'white', fontSize: '11px', cursor: 'pointer' }}>✏️</button>
+                        <button onClick={() => handleDeleteQuiz(quiz.id)} style={{ padding: '6px 12px', borderRadius: '4px', border: 'none', background: 'var(--error)', color: 'white', fontSize: '11px', cursor: 'pointer' }}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-export default AdminPanel;

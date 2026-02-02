@@ -7,6 +7,9 @@ public class User
     public string Email { get; set; }
     public string PasswordHash { get; set; }
     public int TotalPoints { get; set; }
+    public int MonthlyPoints { get; set; }
+    public int CurrentSeasonId { get; set; }
+    public DateTime? LastResetDate { get; set; }
     public int RoleId { get; set; }
     public DateTime CreatedAt { get; set; }
 
@@ -17,4 +20,6 @@ public class User
     public ICollection<PromoterApplication> PromoterApplications { get; set; } = new List<PromoterApplication>();
     public ICollection<PromoterApplication> ReviewedApplications { get; set; } = new List<PromoterApplication>();
     public ICollection<AttractionSuggestion> AttractionSuggestions { get; set; } = new List<AttractionSuggestion>();
+    public ICollection<LeaderboardArchive> LeaderboardArchives { get; set; } = new List<LeaderboardArchive>();
+    public ICollection<UserVoucher> UserVouchers { get; set; } = new List<UserVoucher>();
 }

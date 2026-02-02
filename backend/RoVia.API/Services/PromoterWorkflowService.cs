@@ -171,6 +171,57 @@ public class PromoterWorkflowService
             .ToListAsync();
     }
 
+    public async Task<bool> UpdateOwnedAttractionAsync(int attractionId, int promoterId, AttractionUpsertRequest request)
+    {
+        var attraction = await _context.Attractions.FirstOrDefaultAsync(a => a.Id == attractionId);
+        if (attraction == null) return false;
+
+        if (attraction.CreatedByUserId != promoterId)
+            throw new InvalidOperationException("Nu ai permisiunea să modifici această atracție.");
+
+        attraction.Name = request.Name;
+        attraction.Description = request.Description;
+        attraction.Region = request.Region;
+        attraction.Type = request.Type;
+        attraction.Latitude = request.Latitude;
+        attraction.Longitude = request.Longitude;
+        attraction.ImageUrl = request.ImageUrl;
+        attraction.Rating = request.Rating;
+        attraction.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteOwnedAttractionAsync(int attractionId, int promoterId)
+    {
+        var attraction = await _context.Attractions.FirstOrDefaultAsync(a => a.Id == attractionId);
+        if (attraction == null) return false;
+
+        if (attraction.CreatedByUserId != promoterId)
+            throw new InvalidOperationException("Nu ai permisiunea să ștergi această atracție.");
+
+        // Delete related user progress records first
+        var quizzes = await _context.Quizzes.Where(q => q.AttractionId == attractionId).ToListAsync();
+        foreach (var quiz in quizzes)
+        {
+            var userProgresses = await _context.UserProgresses.Where(up => up.QuizId == quiz.Id).ToListAsync();
+            _context.UserProgresses.RemoveRange(userProgresses);
+        }
+
+        // Delete quizzes
+        _context.Quizzes.RemoveRange(quizzes);
+
+        // Delete related suggestions
+        var suggestions = await _context.AttractionSuggestions.Where(s => s.AttractionId == attractionId).ToListAsync();
+        _context.AttractionSuggestions.RemoveRange(suggestions);
+
+        // Finally delete attraction
+        _context.Attractions.Remove(attraction);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     private static PromoterApplicationResponse MapApplication(PromoterApplication application) => new()
     {
         Id = application.Id,

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export default function Contact() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
-  const [isAuthed, setIsAuthed] = useState(false);
 
   const validate = () => {
     const e = {};
@@ -30,97 +29,278 @@ export default function Contact() {
 
     setLoading(true);
     try {
-      // Try to send to backend; if not available, simulate success
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
       if (!res.ok) {
-        // fallback: show friendly message rather than throwing
-        setStatus({ type: 'warning', message: 'Mesajul nu a fost trimis (server răspuns incorect). Poți scrie la contact@rovia.ro' });
+        setStatus({ type: 'warning', message: '⚠️ Mesajul nu a fost trimis. Scrie la contact@rovia.ro' });
       } else {
-        setStatus({ type: 'success', message: 'Mesaj trimis cu succes. Îți vom răspunde curând.' });
+        setStatus({ type: 'success', message: '✅ Mesaj trimis cu succes! Îți vom răspunde curând.' });
         setForm({ name: '', email: '', subject: '', message: '' });
       }
     } catch (err) {
-      setStatus({ type: 'warning', message: 'Nu s-a putut trimite mesajul. Verifică conexiunea sau scrie la contact@rovia.ro' });
+      setStatus({ type: 'warning', message: '📧 Nu s-a putut trimite. Scrie la contact@rovia.ro' });
     } finally {
       setLoading(false);
     }
   };
 
-  // If user is logged in, prefill email from JWT and make it read-only
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      const payload = token.split('.')[1];
-      if (!payload) return;
-      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const pad = base64.length % 4;
-      const padded = base64 + (pad ? '='.repeat(4 - pad) : '');
-      const json = JSON.parse(decodeURIComponent(escape(window.atob(padded))));
-      const accountEmail = json?.email ?? json?.unique_name ?? json?.name ?? json?.sub ?? null;
-      if (accountEmail) {
-        setForm(f => ({ ...f, email: accountEmail }));
-        setIsAuthed(true);
-      }
-    } catch (e) { /* ignore */ }
-  }, []);
-
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Contact</h1>
-      <p style={{ color: 'var(--muted)', marginBottom: 18 }}>Ai întrebări, sugestii sau ai găsit o problemă? Completează formularul de mai jos și îți răspundem în cel mai scurt timp.</p>
-
-      {status && (
-        <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: status.type === 'success' ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.08)', border: `1px solid ${status.type === 'success' ? 'rgba(34,197,94,0.22)' : 'rgba(245,158,11,0.12)'}` }}>
-          <div style={{ color: 'var(--text)' }}>{status.message}</div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>Nume</div>
-            <input value={form.name} onChange={handleChange('name')} disabled={loading} placeholder="Numele tău" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }} />
-            {errors.name && <div style={{ color: '#ef4444', marginTop: 6 }}>{errors.name}</div>}
-          </label>
-
-          <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>Email</div>
-            <input value={form.email} onChange={handleChange('email')} readOnly={isAuthed} disabled={loading} placeholder="adresa@exemplu.com" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }} />
-            {errors.email && <div style={{ color: '#ef4444', marginTop: 6 }}>{errors.email}</div>}
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>Subiect</div>
-            <input value={form.subject} onChange={handleChange('subject')} disabled={loading} placeholder="Subiectul mesajului" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }} />
-            {errors.subject && <div style={{ color: '#ef4444', marginTop: 6 }}>{errors.subject}</div>}
-          </label>
+    <div style={{
+      minHeight: 'calc(100vh - 56px)',
+      background: 'var(--bg)',
+      paddingLeft: '80px',
+      paddingTop: '24px',
+      paddingBottom: '40px',
+      color: 'var(--text)'
+    }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '0 20px' }}>
+        {/* HEADER */}
+        <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: '36px',
+            fontWeight: '800',
+            margin: '0 0 12px 0',
+            background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            📬 Contactează-ne
+          </h1>
+          <p style={{ margin: 0, color: 'var(--muted)', fontSize: '16px' }}>
+            Avem întrebări? Noi suntem aici pentru a te ajuta. Trimite-ne un mesaj și îți vom răspunde în curând.
+          </p>
         </div>
 
-        <div style={{ marginTop: 12 }}>
-          <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>Mesaj</div>
-            <textarea value={form.message} onChange={handleChange('message')} disabled={loading} placeholder="Descrie pe scurt problema sau întrebarea ta" rows={7} style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)' }} />
-            {errors.message && <div style={{ color: '#ef4444', marginTop: 6 }}>{errors.message}</div>}
-          </label>
-        </div>
-
-        <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button type="submit" disabled={loading} style={{ padding: '10px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'white', cursor: loading ? 'not-allowed' : 'pointer' }}>
-            {loading ? 'Se trimite...' : 'Trimite mesaj'}
-          </button>
-
-          <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-            Sau scrie direct la: <a href="mailto:contact@rovia.ro" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>contact@rovia.ro</a>
+        {/* STATUS MESSAGE */}
+        {status && (
+          <div style={{
+            marginBottom: '24px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            border: `2px solid ${status.type === 'success' ? 'var(--success)' : 'var(--warning)'}`,
+            background: status.type === 'success' 
+              ? 'rgba(16, 185, 129, 0.1)' 
+              : 'rgba(245, 158, 11, 0.1)',
+            color: status.type === 'success' 
+              ? 'var(--success)' 
+              : 'var(--warning)'
+          }}>
+            {status.message}
           </div>
+        )}
+
+        {/* CONTACT FORM */}
+        <form onSubmit={handleSubmit} style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--border)',
+          borderRadius: '16px',
+          padding: '32px',
+          boxShadow: 'var(--shadow-lg)'
+        }}>
+          {/* NAME FIELD */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: 'var(--text)'
+            }}>
+              Nume Complet
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={handleChange('name')}
+              placeholder="Popescu Ion"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: errors.name ? '2px solid var(--error)' : '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'all 200ms ease'
+              }}
+              onFocus={(e) => {
+                if (!errors.name) e.target.style.borderColor = 'var(--accent)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = errors.name ? 'var(--error)' : 'var(--border)';
+              }}
+            />
+            {errors.name && <p style={{ color: 'var(--error)', fontSize: '12px', margin: '6px 0 0 0' }}>{errors.name}</p>}
+          </div>
+
+          {/* EMAIL FIELD */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: 'var(--text)'
+            }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={handleChange('email')}
+              placeholder="ion@email.com"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: errors.email ? '2px solid var(--error)' : '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'all 200ms ease'
+              }}
+              onFocus={(e) => {
+                if (!errors.email) e.target.style.borderColor = 'var(--accent)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = errors.email ? 'var(--error)' : 'var(--border)';
+              }}
+            />
+            {errors.email && <p style={{ color: 'var(--error)', fontSize: '12px', margin: '6px 0 0 0' }}>{errors.email}</p>}
+          </div>
+
+          {/* SUBJECT FIELD */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: 'var(--text)'
+            }}>
+              Subiect
+            </label>
+            <input
+              type="text"
+              value={form.subject}
+              onChange={handleChange('subject')}
+              placeholder="Cum funcționează punctele?"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: errors.subject ? '2px solid var(--error)' : '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'all 200ms ease'
+              }}
+              onFocus={(e) => {
+                if (!errors.subject) e.target.style.borderColor = 'var(--accent)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = errors.subject ? 'var(--error)' : 'var(--border)';
+              }}
+            />
+            {errors.subject && <p style={{ color: 'var(--error)', fontSize: '12px', margin: '6px 0 0 0' }}>{errors.subject}</p>}
+          </div>
+
+          {/* MESSAGE FIELD */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: 'var(--text)'
+            }}>
+              Mesaj
+            </label>
+            <textarea
+              value={form.message}
+              onChange={handleChange('message')}
+              placeholder="Spune-ne ce putem face mai bine..."
+              rows={6}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: errors.message ? '2px solid var(--error)' : '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'all 200ms ease',
+                resize: 'vertical'
+              }}
+              onFocus={(e) => {
+                if (!errors.message) e.target.style.borderColor = 'var(--accent)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = errors.message ? 'var(--error)' : 'var(--border)';
+              }}
+            />
+            {errors.message && <p style={{ color: 'var(--error)', fontSize: '12px', margin: '6px 0 0 0' }}>{errors.message}</p>}
+          </div>
+
+          {/* SUBMIT BUTTON */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '700',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+              transition: 'all 200ms ease'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            {loading ? '📤 Se trimite...' : '📮 Trimite Mesaj'}
+          </button>
+        </form>
+
+        {/* INFO BOX */}
+        <div style={{
+          marginTop: '32px',
+          padding: '20px',
+          borderRadius: '12px',
+          background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>
+            📧 Sau scrie direct: <strong>contact@rovia.ro</strong>
+          </p>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

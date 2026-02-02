@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuth, { emitAuthChange } from '../hooks/useAuth';
 import api from '../services/api';
+import { REGION_META, DEFAULT_REGION, LIGHT_MODE, DARK_MODE } from '../constants/colors';
 
 const Icon = ({ name }) => {
   const icons = {
@@ -19,19 +20,6 @@ const Icon = ({ name }) => {
   return icons[name] || null;
 };
 
-const REGION_ICON_META = {
-  Muntenia: { icon: '🏛️', color: '#f97316' },
-  Transilvania: { icon: '🏔️', color: '#a855f7' },
-  Moldova: { icon: '🌄', color: '#0ea5e9' },
-  Banat: { icon: '🌿', color: '#22c55e' },
-  Dobrogea: { icon: '🌊', color: '#06b6d4' },
-  Maramureș: { icon: '🪵', color: '#ef4444' },
-  Neamț: { icon: '⛰️', color: '#3b82f6' },
-  Alba: { icon: '🏰', color: '#eab308' }
-};
-
-const DEFAULT_REGION_ICON = { icon: '🗺️', color: '#2563eb' };
-
 const TYPE_LABELS = {
   1: 'Naturală',
   2: 'Culturală',
@@ -42,12 +30,43 @@ const TYPE_LABELS = {
 
 const formatRating = (value) => (value ?? 0).toFixed(1);
 
-const getRegionPalette = (region) => REGION_ICON_META[region] || DEFAULT_REGION_ICON;
+const normalizeAttraction = (attraction) => ({
+  id: attraction.Id ?? attraction.id,
+  name: attraction.Name ?? attraction.name,
+  region: attraction.Region ?? attraction.region,
+  rating: attraction.Rating ?? attraction.rating,
+  type: attraction.Type ?? attraction.type
+});
+
+const getRegionPalette = (region, isDark) => {
+  const meta = REGION_META[region];
+  if (!meta) return { ...DEFAULT_REGION, color: DEFAULT_REGION.color(isDark) };
+  return { ...meta, color: meta.color(isDark) };
+};
 
 export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
   const auth = useAuth();
+
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      const stored = localStorage.getItem('theme');
+      return stored === 'dark';
+    } catch { return false; }
+  });
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      try {
+        const stored = localStorage.getItem('theme');
+        setIsDark(stored === 'dark');
+      } catch { /* ignore */ }
+    };
+
+    window.addEventListener('storage', handleThemeChange);
+    return () => window.removeEventListener('storage', handleThemeChange);
+  }, []);
 
   const handleLogout = () => {
     try { localStorage.removeItem('token'); } catch (e) { /* ignore */ }
@@ -83,7 +102,11 @@ export default function Sidebar({ isOpen, onClose }) {
         const response = await api.get('/attractions');
         if (!isMounted) return;
 
-        const grouped = response.data.reduce((acc, attraction) => {
+        const normalized = Array.isArray(response.data)
+          ? response.data.map(normalizeAttraction)
+          : [];
+
+        const grouped = normalized.reduce((acc, attraction) => {
           const regionName = attraction.region || 'Fără regiune';
           if (!acc[regionName]) acc[regionName] = [];
           acc[regionName].push(attraction);
@@ -188,13 +211,13 @@ export default function Sidebar({ isOpen, onClose }) {
             {isOpen && <span style={{ fontSize: 14, fontWeight: 500 }}>Autentificare</span>}
           </Link>
         ) : (
-          <Link to="/profile" style={navItemStyle('/profile')}>
+          <Link to="/dashboard" style={navItemStyle('/dashboard')}>
             <div style={iconBoxStyle}>
               <Icon name="user" />
             </div>
             {isOpen && (
               <span style={{ fontSize: 14, fontWeight: 500 }}>
-                {auth.username || 'Profil'}
+                {auth.username || 'Panou Control'}
               </span>
             )}
           </Link>
@@ -202,21 +225,21 @@ export default function Sidebar({ isOpen, onClose }) {
       </div>
 
       {/* Secțiune Admin/Promoter */}
-      {(isAuth || isPromoter || isAdmin) && (
+      {isAuth && (
         <div style={{ padding: '16px 8px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {isOpen && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Management</span>}
-          {isAuth && (
-            <Link to="/dashboard" style={navItemStyle('/dashboard')}>
-              <div style={iconBoxStyle}>
-                <Icon name="plus" />
-              </div>
-              {isOpen && (
-                <span style={{ fontSize: 14, fontWeight: 500 }}>
-                  {isPromoter ? 'Promoter Hub' : 'Aplică Promotor'}
-                </span>
-              )}
-            </Link>
-          )}
+          
+          <Link to="/promoter" style={navItemStyle('/promoter')}>
+            <div style={iconBoxStyle}>
+              <Icon name="plus" />
+            </div>
+            {isOpen && (
+              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                {(isPromoter || isAdmin) ? 'Promoter Hub' : 'Aplică Promotor'}
+              </span>
+            )}
+          </Link>
+          
           {isAdmin && (
             <Link to="/admin" style={navItemStyle('/admin')}>
               <div style={iconBoxStyle}>
@@ -278,7 +301,7 @@ export default function Sidebar({ isOpen, onClose }) {
             )}
             {!regionsLoading && !regionsError && regionNames.map((region, idx) => {
               const attractions = regionData[region] || [];
-              const palette = getRegionPalette(region);
+              const palette = getRegionPalette(region, isDark);
 
               return (
                 <details key={region} style={{ cursor: 'pointer' }} defaultOpen={idx === 0}>

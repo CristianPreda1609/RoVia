@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ErrorBoundary from './ErrorBoundary';
+import Footer from './Footer';
 
 function Layout({ children }) {
     const [open, setOpen] = useState(false);
@@ -118,6 +119,7 @@ function Layout({ children }) {
                 }}>
                     <div style={{ minHeight: 20 }} />
                     {children}
+                    <Footer />
                 </main>
             </div>
         </ErrorBoundary>

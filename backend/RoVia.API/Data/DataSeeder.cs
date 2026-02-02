@@ -512,4 +512,116 @@ public static partial class DataSeeder
                 })
         };
     }
+
+    public static void SeedVouchers(AppDbContext context)
+    {
+        if (context.Vouchers.Any())
+            return;
+
+        var now = DateTime.UtcNow;
+        var expiry = now.AddMonths(3);
+
+        var vouchers = new List<Voucher>
+        {
+            new()
+            {
+                Code = "WELCOME10",
+                Title = "Bun Venit - 10% Reducere",
+                Description = "10% reducere la cazări în hoteluri partenere",
+                CostPoints = 200,
+                DiscountValue = 10,
+                DiscountType = "PERCENTAGE",
+                MaxUses = null,
+                ExpiryDate = expiry,
+                IsActive = true,
+                ImageUrl = "https://via.placeholder.com/300x160?text=10%+Reducere",
+                Category = "HOTEL",
+                CreatedAt = now,
+                CurrentUses = 0
+            },
+            new()
+            {
+                Code = "EXPLORER25",
+                Title = "Explorator Premium - €25 Off",
+                Description = "€25 reducere la tururi ghidate în zonele montane",
+                CostPoints = 500,
+                DiscountValue = 25,
+                DiscountType = "FIXED_AMOUNT",
+                MaxUses = 5,
+                ExpiryDate = expiry,
+                IsActive = true,
+                ImageUrl = "https://via.placeholder.com/300x160?text=25+Euro",
+                Category = "TRANSPORT",
+                CreatedAt = now,
+                CurrentUses = 0
+            },
+            new()
+            {
+                Code = "DINE15",
+                Title = "Cină Specială - 15% Reducere",
+                Description = "15% reducere la restaurante locale selectate",
+                CostPoints = 300,
+                DiscountValue = 15,
+                DiscountType = "PERCENTAGE",
+                MaxUses = 10,
+                ExpiryDate = expiry,
+                IsActive = true,
+                ImageUrl = "https://via.placeholder.com/300x160?text=15%+Reducere",
+                Category = "RESTAURANT",
+                CreatedAt = now,
+                CurrentUses = 0
+            },
+            new()
+            {
+                Code = "WEEKEND20",
+                Title = "Weekend Getaway - 20% Off",
+                Description = "20% reducere la pachete weekend pentru 2-4 persoane",
+                CostPoints = 750,
+                DiscountValue = 20,
+                DiscountType = "PERCENTAGE",
+                MaxUses = 8,
+                ExpiryDate = expiry,
+                IsActive = true,
+                ImageUrl = "https://via.placeholder.com/300x160?text=20%+Reducere",
+                Category = "HOTEL",
+                CreatedAt = now,
+                CurrentUses = 0
+            },
+            new()
+            {
+                Code = "ADVENTURE50",
+                Title = "Aventura Maximă - €50 Discount",
+                Description = "€50 reducere la experiențe de aventură și tur extrem",
+                CostPoints = 1200,
+                DiscountValue = 50,
+                DiscountType = "FIXED_AMOUNT",
+                MaxUses = 3,
+                ExpiryDate = expiry,
+                IsActive = true,
+                ImageUrl = "https://via.placeholder.com/300x160?text=50+Euro",
+                Category = "TRANSPORT",
+                CreatedAt = now,
+                CurrentUses = 0
+            },
+            new()
+            {
+                Code = "VIP30",
+                Title = "VIP Experience - 30% Reducere",
+                Description = "30% reducere la servicii premium și experiențe exclusive",
+                CostPoints = 1000,
+                DiscountValue = 30,
+                DiscountType = "PERCENTAGE",
+                MaxUses = 5,
+                ExpiryDate = expiry,
+                IsActive = true,
+                ImageUrl = "https://via.placeholder.com/300x160?text=30%+Reducere",
+                Category = "HOTEL",
+                CreatedAt = now,
+                CurrentUses = 0
+            }
+        };
+
+        context.Vouchers.AddRange(vouchers);
+        context.SaveChanges();
+    }
 }

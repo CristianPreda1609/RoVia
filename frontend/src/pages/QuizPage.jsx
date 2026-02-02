@@ -76,7 +76,7 @@ function QuizPage() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', paddingTop: '100px', color: '#6b7280' }}>
+      <div style={{ textAlign: 'center', paddingTop: '100px', color: 'var(--muted)' }}>
         Se încarcă quiz-ul...
       </div>
     );
@@ -84,7 +84,7 @@ function QuizPage() {
 
   if (!quiz) {
     return (
-      <div style={{ textAlign: 'center', paddingTop: '100px', color: '#ef4444' }}>
+      <div style={{ textAlign: 'center', paddingTop: '100px', color: 'var(--error)' }}>
         Quiz-ul nu a fost găsit
       </div>
     );
@@ -119,9 +119,9 @@ function QuizPage() {
                   flex: '1 1 140px',
                   padding: '14px',
                   borderRadius: '12px',
-                  border: isSelected ? '2px solid #10b981' : '1px solid #e5e7eb',
-                  backgroundColor: isSelected ? '#d1fae5' : '#f9fafb',
-                  color: '#111827',
+                  border: isSelected ? '2px solid var(--success)' : '1px solid var(--border)',
+                  backgroundColor: isSelected ? 'var(--success-light)' : 'var(--card-bg)',
+                  color: 'var(--text)',
                   fontWeight: 600,
                   cursor: quizCompleted ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s'
@@ -144,9 +144,9 @@ function QuizPage() {
               display: 'flex',
               alignItems: 'center',
               padding: '12px',
-              backgroundColor: answers[currentQuestion.id] === answer.id ? '#dbeafe' : '#f9fafb',
+              backgroundColor: answers[currentQuestion.id] === answer.id ? 'var(--accent-light)' : 'var(--card-bg)',
               borderRadius: '8px',
-              border: answers[currentQuestion.id] === answer.id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+              border: answers[currentQuestion.id] === answer.id ? '2px solid var(--accent)' : '1px solid var(--border)',
               cursor: quizCompleted ? 'not-allowed' : 'pointer',
               opacity: quizCompleted ? 0.6 : 1,
               transition: 'all 0.2s'
@@ -161,7 +161,7 @@ function QuizPage() {
               style={{ marginRight: '12px', cursor: quizCompleted ? 'not-allowed' : 'pointer' }}
               disabled={quizCompleted}
             />
-            <span style={{ color: '#374151' }}>{answer.text}</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{answer.text}</span>
           </label>
         ))}
       </div>
@@ -184,16 +184,17 @@ function QuizPage() {
           
           {/* Header */}
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: 'var(--card-bg)',
             borderRadius: '12px',
             padding: '20px',
             marginBottom: '24px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-md)'
           }}>
-            <h1 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+            <h1 style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)' }}>
               📍 {attractionName}
             </h1>
-            <h2 style={{ margin: '0 0 16px 0', color: '#1f2937', fontSize: '24px' }}>
+            <h2 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '24px' }}>
               {quiz.title}
             </h2>
             <div style={{
@@ -201,15 +202,15 @@ function QuizPage() {
               justifyContent: 'space-between',
               alignItems: 'center',
               paddingTop: '12px',
-              borderTop: '1px solid #e5e7eb'
+              borderTop: '1px solid var(--border)'
             }}>
-              <p style={{ margin: 0, color: '#6b7280' }}>
+              <p style={{ margin: 0, color: 'var(--muted)' }}>
                 {quiz.questions.length} întrebări
               </p>
               <div style={{
                 fontSize: '20px',
                 fontWeight: 'bold',
-                color: secondsLeft < 30 ? '#ef4444' : '#3b82f6'
+                color: secondsLeft < 30 ? 'var(--error)' : 'var(--accent)'
               }}>
                 ⏱️ {Math.floor(secondsLeft / 60)}:{(secondsLeft % 60).toString().padStart(2, '0')}
               </div>
@@ -222,39 +223,43 @@ function QuizPage() {
               marginTop: '16px'
             }}>
               <div style={{
-                backgroundColor: '#f3f4f6',
+                backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '10px',
-                padding: '12px'
+                padding: '12px',
+                border: '1px solid var(--border)'
               }}>
-                <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Punctaj maxim</p>
-                <p style={{ margin: 0, fontWeight: 600, color: '#1f2937' }}>{maxPoints}p</p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>Punctaj maxim</p>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{maxPoints}p</p>
               </div>
               <div style={{
-                backgroundColor: '#f3f4f6',
+                backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '10px',
-                padding: '12px'
+                padding: '12px',
+                border: '1px solid var(--border)'
               }}>
-                <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Multiplicator</p>
-                <p style={{ margin: 0, fontWeight: 600, color: '#1f2937' }}>x{difficultyMultiplier}</p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>Multiplicator</p>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>x{difficultyMultiplier}</p>
               </div>
               <div style={{
-                backgroundColor: '#f3f4f6',
+                backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '10px',
-                padding: '12px'
+                padding: '12px',
+                border: '1px solid var(--border)'
               }}>
-                <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Întrebări răspunse</p>
-                <p style={{ margin: 0, fontWeight: 600, color: '#1f2937' }}>{answeredCount}/{quiz.questions.length}</p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>Întrebări răspunse</p>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{answeredCount}/{quiz.questions.length}</p>
               </div>
               <div style={{
-                backgroundColor: '#f3f4f6',
+                backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '10px',
-                padding: '12px'
+                padding: '12px',
+                border: '1px solid var(--border)'
               }}>
-                <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Pool întrebări</p>
-                <p style={{ margin: 0, fontWeight: 600, color: '#1f2937' }}>{questionPoolSize} totale • {quiz.questions.length} random</p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)' }}>Pool întrebări</p>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{questionPoolSize} totale • {quiz.questions.length} random</p>
               </div>
             </div>
-            <p style={{ margin: '12px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+            <p style={{ margin: '12px 0 0 0', color: 'var(--muted)', fontSize: '13px' }}>
               🎲 Primești {quiz.questions.length} întrebări random dintr-un pool de {questionPoolSize} la fiecare încercare.
             </p>
           </div>
@@ -262,24 +267,24 @@ function QuizPage() {
           {/* Rezultate */}
           {quizCompleted && result && (
             <div style={{
-              backgroundColor: '#ecfdf5',
+              backgroundColor: 'var(--success-light)',
               borderRadius: '12px',
               padding: '24px',
               marginBottom: '20px',
-              border: '1px solid #6ee7b7',
-              boxShadow: '0 2px 6px rgba(16,185,129,0.15)'
+              border: '1px solid var(--success)',
+              boxShadow: 'var(--shadow-sm)'
             }}>
-              <h3 style={{ margin: '0 0 12px 0', color: '#065f46' }}>🎉 Ai terminat quiz-ul!</h3>
-              <p style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 'bold', color: '#047857' }}>
+              <h3 style={{ margin: '0 0 12px 0', color: 'var(--success)' }}>🎉 Ai terminat quiz-ul!</h3>
+              <p style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 'bold', color: 'var(--success)' }}>
                 {result.pointsEarned} / {result.maxPoints} puncte
               </p>
-              <p style={{ margin: '0 0 4px 0', color: '#047857' }}>
+              <p style={{ margin: '0 0 4px 0', color: 'var(--success)' }}>
                 Răspunsuri corecte: {result.correctAnswers} din {result.totalQuestions}
               </p>
-              <p style={{ margin: '0 0 4px 0', color: '#047857', fontSize: '13px' }}>
+              <p style={{ margin: '0 0 4px 0', color: 'var(--success)', fontSize: '13px' }}>
                 Pool: {result.totalQuestions} / {result.questionPoolSize} întrebări servite
               </p>
-              <p style={{ margin: 0, color: '#047857', fontSize: '13px' }}>
+              <p style={{ margin: 0, color: 'var(--success)', fontSize: '13px' }}>
                 Bază: {result.basePoints}p • Multiplicator dificultate x{result.difficultyMultiplier}
               </p>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
@@ -288,7 +293,7 @@ function QuizPage() {
                   style={{
                     flex: '1 1 180px',
                     padding: '12px 16px',
-                    backgroundColor: '#10b981',
+                    backgroundColor: 'var(--success)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '10px',
@@ -303,9 +308,9 @@ function QuizPage() {
                   style={{
                     flex: '1 1 180px',
                     padding: '12px 16px',
-                    backgroundColor: 'white',
-                    color: '#065f46',
-                    border: '1px solid #6ee7b7',
+                    backgroundColor: 'var(--card-bg)',
+                    color: 'var(--success)',
+                    border: '1px solid var(--success)',
                     borderRadius: '10px',
                     cursor: 'pointer',
                     fontWeight: 600
@@ -321,29 +326,30 @@ function QuizPage() {
           {!quizCompleted && currentQuestion && (
             <div
               style={{
-                backgroundColor: 'white',
+                backgroundColor: 'var(--card-bg)',
                 borderRadius: '12px',
                 padding: '20px',
                 marginBottom: '16px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-md)'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', color: '#6b7280' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', color: 'var(--muted)' }}>
                 <span>
                   Întrebarea {currentQuestionIndex + 1} / {quiz.questions.length}
                 </span>
                 <span
                   style={{
                     fontWeight: 600,
-                    color: secondsLeft < 30 ? '#ef4444' : '#3b82f6'
+                    color: secondsLeft < 30 ? 'var(--error)' : 'var(--accent)'
                   }}
                 >
                   ⏱️ {Math.floor(secondsLeft / 60)}:{(secondsLeft % 60).toString().padStart(2, '0')}
                 </span>
               </div>
               <div style={{ marginTop: '16px' }}>
-                <p style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '16px' }}>{currentQuestion.text}</p>
-                <p style={{ margin: '0 0 10px 0', color: '#6b7280', fontSize: '13px' }}>Tip întrebare: {questionTypeLabel}</p>
+                <p style={{ margin: '0 0 12px 0', color: 'var(--text)', fontSize: '16px' }}>{currentQuestion.text}</p>
+                <p style={{ margin: '0 0 10px 0', color: 'var(--muted)', fontSize: '13px' }}>Tip întrebare: {questionTypeLabel}</p>
                 {renderAnswerOptions()}
               </div>
               <button
@@ -352,7 +358,7 @@ function QuizPage() {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  backgroundColor: isSubmitting ? '#9ca3af' : isLastQuestion ? '#10b981' : '#3b82f6',
+                  backgroundColor: isSubmitting ? 'var(--muted)' : isLastQuestion ? 'var(--success)' : 'var(--accent)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',

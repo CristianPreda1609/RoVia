@@ -263,18 +263,18 @@ function AttractionPage() {
 
                             {quizSubmitted && result ? (
                                 // Rezultat
-                                <div style={{ textAlign: 'center', padding: '24px', backgroundColor: '#dcfce7', borderRadius: '12px', border: '1px solid #86efac' }}>
-                                    <h3 style={{ color: '#166534', margin: '0 0 12px 0' }}>🎉 Quiz finalizat!</h3>
-                                    <p style={{ fontSize: '26px', fontWeight: 'bold', color: '#166534', margin: '0 0 8px 0' }}>
+                                <div style={{ textAlign: 'center', padding: '24px', backgroundColor: 'var(--success-light)', borderRadius: '12px', border: '1px solid var(--success)' }}>
+                                    <h3 style={{ color: 'var(--success)', margin: '0 0 12px 0' }}>🎉 Quiz finalizat!</h3>
+                                    <p style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--success)', margin: '0 0 8px 0' }}>
                                         {result.pointsEarned} / {result.maxPoints} puncte
                                     </p>
-                                    <p style={{ margin: '0 0 4px 0', color: '#166534', fontWeight: 600 }}>
+                                    <p style={{ margin: '0 0 4px 0', color: 'var(--success)', fontWeight: 600 }}>
                                         Răspunsuri corecte: {result.correctAnswers} din {result.totalQuestions}
                                     </p>
-                                    <p style={{ margin: '0 0 4px 0', color: '#166534', fontSize: '13px' }}>
+                                    <p style={{ margin: '0 0 4px 0', color: 'var(--success)', fontSize: '13px' }}>
                                         Pool: {result.totalQuestions} / {result.questionPoolSize} întrebări servite
                                     </p>
-                                    <p style={{ margin: 0, color: '#15803d', fontSize: '13px' }}>
+                                    <p style={{ margin: 0, color: 'var(--success)', fontSize: '13px' }}>
                                         Multiplicator dificultate x{result.difficultyMultiplier} • Puncte de bază: {result.basePoints}
                                     </p>
                                 </div>
@@ -309,8 +309,8 @@ function AttractionPage() {
                                                                 flex: '1 1 140px',
                                                                 padding: '12px',
                                                                 borderRadius: '10px',
-                                                                border: isSelected ? '2px solid #10b981' : '1px solid var(--border)',
-                                                                backgroundColor: isSelected ? '#dcfce7' : 'var(--card-bg)',
+                                                                border: isSelected ? '2px solid var(--success)' : '1px solid var(--border)',
+                                                                backgroundColor: isSelected ? 'var(--success-light)' : 'var(--card-bg)',
                                                                 color: 'var(--text)',
                                                                 fontWeight: 600,
                                                                 cursor: quizSubmitted ? 'not-allowed' : 'pointer'

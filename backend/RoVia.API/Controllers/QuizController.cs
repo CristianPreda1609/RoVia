@@ -70,9 +70,50 @@ public class QuizController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "Administrator")]
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllQuizzes()
+    {
+        var quizzes = await _quizService.GetAllQuizzesAsync();
+        var result = quizzes.Select(q => new
+        {
+            q.Id,
+            q.AttractionId,
+            AttractionName = q.Attraction != null ? q.Attraction.Name : string.Empty,
+            q.Title,
+            q.Description,
+            q.DifficultyLevel,
+            q.TimeLimit,
+            QuestionsCount = q.Questions?.Count ?? 0
+        });
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "Promoter,Administrator")]
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMyQuizzes()
+    {
+        int userId = ResolveUserId();
+        if (userId == 0) return Unauthorized();
+
+        var quizzes = await _quizService.GetQuizzesForUserAsync(userId);
+        var result = quizzes.Select(q => new
+        {
+            q.Id,
+            q.AttractionId,
+            AttractionName = q.Attraction != null ? q.Attraction.Name : string.Empty,
+            q.Title,
+            q.Description,
+            q.DifficultyLevel,
+            q.TimeLimit,
+            QuestionsCount = q.Questions?.Count ?? 0
+        });
+        return Ok(result);
+    }
+
     // GET: detalii quiz cu întrebări și răspunsuri
     [AllowAnonymous]
-    [HttpGet("{quizId}")]
+    [HttpGet("{quizId:int}")]
     public async Task<IActionResult> GetQuiz(int quizId)
     {
         var quiz = await _quizService.GetQuizWithQuestionsAsync(quizId);
@@ -115,7 +156,7 @@ public class QuizController : ControllerBase
     }
 
     [Authorize(Roles = "Promoter,Administrator")]
-    [HttpGet("{quizId}/manage")]
+    [HttpGet("{quizId:int}/manage")]
     public async Task<IActionResult> GetQuizForManagement(int quizId)
     {
         int userId = ResolveUserId();
@@ -162,7 +203,7 @@ public class QuizController : ControllerBase
 
     // POST: submit quiz răspunsuri (protejat)
     [Authorize]
-    [HttpPost("{quizId}/submit")]
+    [HttpPost("{quizId:int}/submit")]
     public async Task<IActionResult> SubmitQuiz(int quizId, [FromBody] Dictionary<int, int> answers)
     {
         int userId = ResolveUserId();
@@ -200,7 +241,7 @@ public class QuizController : ControllerBase
     }
 
     [Authorize(Roles = "Promoter,Administrator")]
-    [HttpPut("{quizId}")]
+    [HttpPut("{quizId:int}")]
     public async Task<IActionResult> UpdateQuiz(int quizId, [FromBody] QuizUpdateRequest request)
     {
         if (!ModelState.IsValid)
@@ -224,7 +265,7 @@ public class QuizController : ControllerBase
     }
 
     [Authorize(Roles = "Promoter,Administrator")]
-    [HttpDelete("{quizId}")]
+    [HttpDelete("{quizId:int}")]
     public async Task<IActionResult> DeleteQuiz(int quizId)
     {
         int userId = ResolveUserId();
