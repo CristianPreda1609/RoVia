@@ -174,7 +174,7 @@ function QuizPage() {
   };
 
   return (
-    <div style={{ position: 'relative', height: '100vh', overflow: 'auto' }}>
+    <div className="page-container" style={{ position: 'relative', height: '100vh', overflow: 'auto' }}>
       <TopBar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} userName="User" />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

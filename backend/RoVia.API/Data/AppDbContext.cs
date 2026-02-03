@@ -22,6 +22,12 @@ public class AppDbContext : DbContext
     public DbSet<LeaderboardArchive> LeaderboardArchives { get; set; }
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<UserVoucher> UserVouchers { get; set; }
+    public DbSet<Challenge> Challenges { get; set; }
+    public DbSet<UserChallenge> UserChallenges { get; set; }
+    public DbSet<UserFavorite> UserFavorites { get; set; }
+    public DbSet<UserAttractionVisit> UserAttractionVisits { get; set; }
+    public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<UserActivityStats> UserActivityStats { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +82,15 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(up => up.QuizId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<UserActivityStats>()
+            .HasKey(s => s.UserId);
+
+        modelBuilder.Entity<UserActivityStats>()
+            .HasOne(s => s.User)
+            .WithOne()
+            .HasForeignKey<UserActivityStats>(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Badges
         modelBuilder.Entity<UserBadge>()
@@ -137,5 +152,21 @@ public class AppDbContext : DbContext
             .WithMany(v => v.UserVouchers)
             .HasForeignKey(uv => uv.VoucherId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Friendship>()
+            .HasOne(f => f.Requester)
+            .WithMany(u => u.FriendRequestsSent)
+            .HasForeignKey(f => f.RequesterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Friendship>()
+            .HasOne(f => f.Addressee)
+            .WithMany(u => u.FriendRequestsReceived)
+            .HasForeignKey(f => f.AddresseeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Friendship>()
+            .HasIndex(f => new { f.RequesterId, f.AddresseeId })
+            .IsUnique();
     }
 }

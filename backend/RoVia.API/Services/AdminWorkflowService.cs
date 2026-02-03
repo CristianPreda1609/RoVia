@@ -8,10 +8,12 @@ namespace RoVia.API.Services;
 public class AdminWorkflowService
 {
     private readonly AppDbContext _context;
+    private readonly ActivityPointsService _activityPoints;
 
-    public AdminWorkflowService(AppDbContext context)
+    public AdminWorkflowService(AppDbContext context, ActivityPointsService activityPoints)
     {
         _context = context;
+        _activityPoints = activityPoints;
     }
 
     public async Task<List<PromoterApplicationResponse>> GetApplicationsAsync(PromoterApplicationStatus? status)
@@ -170,6 +172,21 @@ public class AdminWorkflowService
 
         await _context.SaveChangesAsync();
 
+        if (suggestion.CreatesNewAttraction)
+        {
+            await _activityPoints.AwardActivityAsync(suggestion.PromoterId, "Promoter", ActivityAction.AttractionCreated);
+        }
+        else
+        {
+            await _activityPoints.AwardActivityAsync(suggestion.PromoterId, "Promoter", ActivityAction.AttractionUpdated);
+        }
+
+        await _activityPoints.AwardActivityAsync(suggestion.PromoterId, "Promoter", ActivityAction.SuggestionApproved);
+        await _activityPoints.AwardActivityAsync(adminUserId, "Administrator", ActivityAction.SuggestionApproved);
+
+        // Award badges pentru milestone-uri de promoter
+        await AwardPromoterMilestoneBadgesAsync(suggestion.PromoterId);
+
         await _context.Entry(suggestion).Reference(s => s.Attraction).LoadAsync();
         await _context.Entry(suggestion).Reference(s => s.Promoter).LoadAsync();
 
@@ -272,4 +289,64 @@ public class AdminWorkflowService
         ReviewedByUserId = suggestion.ReviewedByUserId,
         AdminResponse = suggestion.AdminResponse
     };
+
+    private async Task AwardPromoterMilestoneBadgesAsync(int promoterId)
+{
+    try
+    {
+        // Număr suggestion-uri aprobate pentru promoter
+        var approvedCount = await _context.AttractionSuggestions
+            .Where(s => s.PromoterId == promoterId && s.Status == SuggestionStatus.Approved)
+            .CountAsync();
+
+        // Milestones: badge name -> approved count required
+        var milestones = new Dictionary<string, int>
+        {
+            { "Promoter Debut", 1 },
+            { "Contributor Activ", 5 },
+            { "Expert Regional", 10 },
+            { "Istoric Turistic", 25 },
+            { "Legendă Culturală", 50 },
+            { "Maestru al Turismului", 100 }
+        };
+
+        foreach (var (badgeName, requiredCount) in milestones)
+        {
+            if (approvedCount >= requiredCount)
+            {
+                // Verifică dacă promoter mai are badge-ul
+                var existingBadge = await _context.UserBadges
+                    .FirstOrDefaultAsync(ub => 
+                        ub.UserId == promoterId && 
+                        ub.Badge.Name == badgeName);
+
+                if (existingBadge == null)
+                {
+                    // Găsește badge-ul din DB
+                    var badge = await _context.Badges
+                        .FirstOrDefaultAsync(b => b.Name == badgeName);
+
+                    if (badge != null)
+                    {
+                        var userBadge = new UserBadge
+                        {
+                            UserId = promoterId,
+                            BadgeId = badge.Id,
+                            UnlockedAt = DateTime.UtcNow
+                        };
+
+                        _context.UserBadges.Add(userBadge);
+                    }
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+    catch (Exception ex)
+    {
+        // Log error dar nu bloca approval flow
+        Console.WriteLine($"Error awarding badges: {ex.Message}");
+    }
+}
 }

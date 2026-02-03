@@ -294,10 +294,11 @@ export default function AdminPanel() {
     }
   };
 
+
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text)' }}>Se încarcă...</div>;
 
   return (
-    <div style={{
+    <div className="page-container" style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
       paddingLeft: '80px',
@@ -329,10 +330,18 @@ export default function AdminPanel() {
           ].map((stat, i) => (
             <div key={i} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
               <p style={{ margin: 0, color: 'var(--muted)', fontSize: '12px' }}>{stat.label}</p>
-              <p style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '800', color: stat.color }}>{stat.value}</p>
+              <h2 style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '700', color: stat.color }}>{stat.value}</h2>
             </div>
           ))}
         </div>
+
+        {/* DASHBOARD CONTENT */}
+        {activeTab === 'dashboard' && (
+          <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '24px' }}>
+            <h2 style={{ margin: 0, marginBottom: '16px' }}>Pregled Sistem</h2>
+            <p style={{ color: 'var(--muted)', marginBottom: '24px' }}>Selectează o secțiune din meniu pentru a gestiona conținutul platformei.</p>
+          </div>
+        )}
 
         {/* TABS */}
         <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '24px', flexWrap: 'wrap' }}>

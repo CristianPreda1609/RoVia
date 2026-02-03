@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api';
 import api from '../services/api';
 import quizService from '../services/quizService';
+import useAuth from '../hooks/useAuth';
 
 function AttractionPage() {
     const { id } = useParams();
+    const auth = useAuth();
     const [attraction, setAttraction] = useState(null);
     const [quizzes, setQuizzes] = useState([]);
     const [activeQuiz, setActiveQuiz] = useState(null);
@@ -17,6 +19,8 @@ function AttractionPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [favoriteLoading, setFavoriteLoading] = useState(false);
 
     const { isLoaded } = useLoadScript({
         googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -31,6 +35,23 @@ function AttractionPage() {
 
                 const quizzesRes = await quizService.getQuizzesByAttraction(id);
                 setQuizzes(quizzesRes || []);
+
+                // Check if favorite
+                if (auth?.userId) {
+                    try {
+                        const favRes = await api.get(`/favorites/check/${id}`);
+                        setIsFavorite(favRes.data?.isFavorite || false);
+                    } catch (err) {
+                        console.error('Favorite check failed:', err);
+                    }
+
+                    // Track visit
+                    try {
+                        await api.post(`/visits/${id}`);
+                    } catch (err) {
+                        console.error('Visit tracking failed:', err);
+                    }
+                }
             } catch (err) {
                 console.error('Error:', err);
                 setError('A apărut o eroare.');
@@ -39,7 +60,24 @@ function AttractionPage() {
             }
         };
         if (id) fetchData();
-    }, [id]);
+    }, [id, auth?.userId]);
+
+    const handleToggleFavorite = async () => {
+        if (!auth?.userId) {
+            alert('Trebuie să fii autentificat pentru a salva favorite!');
+            return;
+        }
+        setFavoriteLoading(true);
+        try {
+            const res = await api.post(`/favorites/${id}`);
+            setIsFavorite(res.data?.isFavorite || false);
+        } catch (err) {
+            console.error('Toggle favorite failed:', err);
+            alert('Nu am putut salva favoriții. Încearcă din nou.');
+        } finally {
+            setFavoriteLoading(false);
+        }
+    };
 
     // Timer pentru quiz
     useEffect(() => {
@@ -152,7 +190,7 @@ function AttractionPage() {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', minHeight: 'calc(100vh - 80px)' }}>
+        <div className="page-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', minHeight: 'calc(100vh - 80px)' }}>
             {/* STÂNGA: Detalii Atracție */}
             <div style={{ background: 'var(--card-bg)', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
                 {/* Imagine atracție */}
@@ -166,9 +204,37 @@ function AttractionPage() {
                 )}
 
                 {/* Titlu și informații generale */}
-                <h1 style={{ margin: '0 0 12px 0', color: 'var(--text)', fontSize: '28px' }}>
-                    {attraction.name}
-                </h1>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <h1 style={{ margin: 0, color: 'var(--text)', fontSize: '28px', flex: 1 }}>
+                        {attraction.name}
+                    </h1>
+                    <button
+                        onClick={handleToggleFavorite}
+                        disabled={favoriteLoading}
+                        style={{
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            border: `2px solid ${isFavorite ? '#ef4444' : 'var(--border)'}`,
+                            background: isFavorite ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg)',
+                            color: isFavorite ? '#ef4444' : 'var(--muted)',
+                            cursor: favoriteLoading ? 'not-allowed' : 'pointer',
+                            fontSize: '18px',
+                            transition: 'all 0.2s',
+                            opacity: favoriteLoading ? 0.6 : 1
+                        }}
+                        onMouseEnter={(e) => {
+                            if (!favoriteLoading) {
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                        title={isFavorite ? 'Șterge din favorite' : 'Adaugă la favorite'}
+                    >
+                        {isFavorite ? '❤️' : '🤍'}
+                    </button>
+                </div>
 
                 <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '14px', color: 'var(--muted)' }}>
                     <span>📍 {attraction.region}</span>

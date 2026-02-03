@@ -685,7 +685,7 @@ export default function MapPage() {
 
     return (
         // NOTE: changed from height: '100vh' to minHeight calc to avoid total height > viewport (TopBar fixed)
-        <div style={{ position: 'relative', overflow: 'hidden', height: 'calc(100vh - var(--topbar-height, 80px))' }}>
+        <div className="page-container" style={{ position: 'relative', overflow: 'hidden', height: 'calc(100vh - var(--topbar-height, 80px))' }}>
             <div
                 style={{
                     position: 'fixed',

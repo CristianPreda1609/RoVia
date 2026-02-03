@@ -14,6 +14,7 @@ import PromoterPortal from './pages/PromoterPortal';
 import AdminPanel from './pages/AdminPanel';
 import Leaderboard from './pages/Leaderboard';
 import VoucherStore from './pages/VoucherStore';
+import Recommendations from './pages/Recommendations';
 
 
 function App() {
@@ -77,6 +78,14 @@ function App() {
 						/>
 						<Route path="/quiz/:quizId" element={<QuizPage />} />
 						<Route path="/leaderboard" element={<Leaderboard />} />
+						<Route
+							path="/recommendations"
+							element={
+								<RequireAuth>
+									<Recommendations />
+								</RequireAuth>
+							}
+						/>
 						<Route
 							path="/rewards"
 							element={

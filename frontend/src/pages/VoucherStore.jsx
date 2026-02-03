@@ -121,7 +121,7 @@ export default function VoucherStore() {
   };
 
   return (
-    <div style={{
+    <div className="page-container" style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
       paddingLeft: 'calc(80px + 20px)',

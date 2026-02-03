@@ -9,6 +9,7 @@ const Icon = ({ name }) => {
     home: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11.5L12 4l9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 21V11h14v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     map: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6l4-2 8 3 6-2v12l-4 2-8-3-6 2V6z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     trophy: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 9h12M6 9c0-1.5 1-3 3-3h6c2 0 3 1.5 3 3M6 9v6c0 1.5 1.5 3 4 3h4c2.5 0 4-1.5 4-3V9M10 17v2M14 17v2M9 19h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    spark: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l2.2 4.6L19 10l-4.8 2.4L12 17l-2.2-4.6L5 10l4.8-2.4L12 3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     mail: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 8.5v7a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 8.5L12 14 3 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     user: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M5.5 20a7 7 0 0113 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     plus: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -84,6 +85,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const navItems = [
     { icon: 'home', label: 'Acasă', to: '/map' },
+    { icon: 'spark', label: 'Noutăți', to: '/recommendations' },
     { icon: 'trophy', label: 'Clasament', to: '/leaderboard' },
     { icon: 'gift', label: 'Vouchere', to: '/rewards' },
     { icon: 'mail', label: 'Contact', to: '/contact' },
@@ -144,7 +146,7 @@ export default function Sidebar({ isOpen, onClose }) {
     left: 0,
     height: '100vh',
     zIndex: 70,
-    background: 'var(--card-bg)',
+    background: 'var(--sidebar-bg)',
     borderRight: '1px solid var(--border)',
     display: 'flex',
     flexDirection: 'column',
@@ -183,7 +185,7 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   return (
-    <div style={containerStyle}>
+    <div className="sidebar" style={containerStyle}>
       {/* Header cu logo */}
       <div style={{ padding: '16px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: isOpen ? 'space-between' : 'center' }}>
         <span style={{ fontWeight: 700, fontSize: isOpen ? 18 : 16, color: 'var(--accent)' }}>{isOpen ? 'RoVia' : 'RV'}</span>

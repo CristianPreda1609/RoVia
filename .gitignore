@@ -1,0 +1,10 @@
+# Backend local secrets
+backend/RoVia.API/appsettings.Local.json
+
+# Build outputs
+**/bin/
+**/obj/
+
+# User-specific files
+**/*.csproj.user
+**/*.user

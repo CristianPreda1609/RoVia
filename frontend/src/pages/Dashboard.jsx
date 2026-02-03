@@ -1,18 +1,28 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useAuth from '../hooks/useAuth';
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const auth = useAuth();
   const [profile, setProfile] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [userRankEntry, setUserRankEntry] = useState(null);
+  const [badgeProgress, setBadgeProgress] = useState(null);
+  const [showAllBadges, setShowAllBadges] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
+  const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [friendQuery, setFriendQuery] = useState('');
+  const [friendSearchResults, setFriendSearchResults] = useState([]);
+  const [friendsStatus, setFriendsStatus] = useState(null);
+  const [inviteCode, setInviteCode] = useState('');
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   const initialTab = useMemo(() => {
     return searchParams.get('tab') === 'account' ? 'account' : 'overview';
@@ -21,6 +31,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchFriends();
+    fetchFriendRequests();
+    fetchInviteCode();
   }, []);
 
   useEffect(() => {
@@ -30,16 +43,18 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [profileRes, leaderboardRes, rankRes] = await Promise.all([
+      const [profileRes, leaderboardRes, rankRes, badgeRes] = await Promise.all([
         api.get('/profile/me'),
         api.get('/profile/leaderboard?take=3'),
-        api.get('/profile/leaderboard/me')
+        api.get('/profile/leaderboard/me'),
+        api.get('/profile/me/badge-progress').catch(() => ({ data: null }))
       ]);
 
       setProfile(profileRes.data);
       setFormData(profileRes.data || {});
       setLeaderboard(leaderboardRes.data || []);
       setUserRankEntry(rankRes.data || null);
+      setBadgeProgress(badgeRes?.data || null);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       // Don't block UI on error, just show empty state
@@ -81,14 +96,119 @@ export default function Dashboard() {
     }
   };
 
+  const fetchFriends = async () => {
+    try {
+      const res = await api.get('/friends');
+      setFriends(res.data || []);
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut încărca lista de prieteni.' });
+    }
+  };
+
+  const fetchFriendRequests = async () => {
+    try {
+      const res = await api.get('/friends/requests');
+      setFriendRequests(res.data || []);
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut încărca cererile de prietenie.' });
+    }
+  };
+
+  const handleSearchFriends = async () => {
+    if (!friendQuery.trim()) {
+      setFriendSearchResults([]);
+      return;
+    }
+
+    try {
+      const res = await api.get('/friends/search', { params: { query: friendQuery.trim() } });
+      setFriendSearchResults(res.data || []);
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Căutarea a eșuat.' });
+    }
+  };
+
+  const handleSendFriendRequest = async (userId) => {
+    try {
+      await api.post(`/friends/request/${userId}`);
+      setFriendsStatus({ type: 'success', message: 'Cerere de prietenie trimisă.' });
+      setFriendSearchResults([]);
+      setFriendQuery('');
+      fetchFriendRequests();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: err.response?.data?.message || 'Nu am putut trimite cererea.' });
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId) => {
+    try {
+      await api.post(`/friends/accept/${requestId}`);
+      setFriendsStatus({ type: 'success', message: 'Cerere acceptată.' });
+      fetchFriendRequests();
+      fetchFriends();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut accepta cererea.' });
+    }
+  };
+
+  const handleRejectFriendRequest = async (requestId) => {
+    try {
+      await api.post(`/friends/reject/${requestId}`);
+      setFriendsStatus({ type: 'success', message: 'Cerere respinsă.' });
+      fetchFriendRequests();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut respinge cererea.' });
+    }
+  };
+
+  const handleUnfriend = async (friendId) => {
+    try {
+      await api.delete(`/friends/${friendId}`);
+      setFriendsStatus({ type: 'success', message: 'Prieten eliminat.' });
+      fetchFriends();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: err.response?.data?.message || 'Nu am putut elimina prietenul.' });
+    }
+  };
+
+  const fetchInviteCode = async () => {
+    try {
+      const res = await api.get('/profile/me/invite-code');
+      setInviteCode(res.data.inviteCode || '');
+    } catch (err) {
+      console.error('Failed to fetch invite code:', err);
+    }
+  };
+
+  const copyInviteLink = async () => {
+    const link = `${window.location.origin}/register?invite=${inviteCode}`;
+    navigator.clipboard.writeText(link);
+    setCopiedInvite(true);
+    
+    // Track invite challenge
+    try {
+      await api.post('/challenges/track-invite');
+      console.log('✓ Challenge tracked');
+    } catch (err) {
+      console.error('Error tracking invite challenge:', err);
+    }
+    
+    setTimeout(() => setCopiedInvite(false), 2000);
+  };
+
   if (loading) return (
     <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text)' }}>
       <h2>Se încarcă profilul...</h2>
     </div>
   );
 
+  const badgeList = badgeProgress?.Badges || [];
+  const unlockedBadges = badgeList.filter(badge => badge.IsUnlocked);
+  const roleName = (profile?.Role || auth.role || '').toString().toLowerCase();
+  const showActivityPoints = roleName === 'promoter' || roleName === 'administrator';
+
   return (
-    <div style={{
+    <div className="page-container" style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
       color: 'var(--text)',
@@ -188,6 +308,17 @@ export default function Dashboard() {
                 <p style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{profile?.QuizzesCompleted ?? '-'}</p>
                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>Teste finalizate</p>
               </div>
+
+              {showActivityPoints && (
+                <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🏛️</div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Puncte activitate</h3>
+                  </div>
+                  <p style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{profile?.ActivityPoints ?? 0}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>Contribuții turistice</p>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
@@ -240,17 +371,131 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* BADGES */}
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Insigne</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800' }}>{badgeProgress?.UnlockedCount ?? unlockedBadges.length ?? (profile?.badges || profile?.Badges || []).length}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>insigne deblocate</div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {(unlockedBadges.length ? unlockedBadges : (profile?.badges || profile?.Badges || [])).slice(0, 6).map((badge, idx) => (
+                    <div
+                      key={badge.id || badge.Id || idx}
+                      title={`${badge.name || badge.Name}${badge.description || badge.Description ? ` — ${badge.description || badge.Description}` : ''}`}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px'
+                      }}
+                    >
+                      {badge.iconUrl || badge.IconUrl || '🏅'}
+                    </div>
+                  ))}
+                  {(unlockedBadges.length === 0 && (profile?.badges || profile?.Badges || []).length === 0) && (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Încă nu ai insigne.</div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setShowAllBadges(prev => !prev)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    color: 'var(--accent)',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showAllBadges ? 'Ascunde toate insignele' : 'Vezi toate insignele'}
+                </button>
+
+                {showAllBadges && (
+                  <div style={{ marginTop: '16px', display: 'grid', gap: '12px' }}>
+                    {badgeList.map((badge) => (
+                      <div key={badge.Id} style={{
+                        padding: '12px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        background: badge.IsUnlocked ? 'rgba(16, 185, 129, 0.08)' : 'rgba(99, 102, 241, 0.05)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ fontSize: '20px' }}>{badge.IconUrl}</div>
+                            <div>
+                              <div style={{ fontWeight: '700' }}>{badge.Name}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{badge.Description}</div>
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: badge.IsUnlocked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.12)',
+                            color: badge.IsUnlocked ? 'var(--success)' : 'var(--accent)',
+                            fontWeight: '700'
+                          }}>
+                            {badge.IsUnlocked ? 'Deblocat' : 'În progres'}
+                          </div>
+                        </div>
+                        <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+                          Necesare: {badge.RequiredProgress} {badge.ProgressLabel || ''} · Ai: {badge.CurrentProgress}
+                        </div>
+                        {!badge.IsUnlocked && badge.RemainingToUnlock > 0 && (
+                          <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
+                            Îți mai lipsesc: {badge.RemainingToUnlock} {badge.ProgressLabel || ''}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* NEWS & RECOMMENDATIONS CTA */}
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '12px' }}>Noutăți & recomandări</h2>
+                <div style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '16px' }}>
+                  Vezi cele mai noi atracții și recomandări turistice.
+                </div>
+                <button
+                  onClick={() => navigate('/recommendations')}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: 'white',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Deschide recomandările
+                </button>
+              </div>
+
             </div>
           </>
         )}
 
         {activeTab === 'account' && (
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '32px'
-          }}>
+          <>
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '32px',
+              marginBottom: '20px'
+            }}>
             <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ margin: 0, fontSize: '20px' }}>Informații Personale</h2>
               <button
@@ -372,7 +617,244 @@ export default function Dashboard() {
                 💾 Salvează Schimbări
               </button>
             )}
-          </div>
+            </div>
+            {/* INVITE FRIENDS SECTION */}
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>🎁 Invită prieteni</h2>
+              
+              <p style={{ color: 'var(--muted)', marginBottom: '16px', fontSize: '14px' }}>
+                Trimite linkul tău de invitație prietenilor. Când se înregistrează, primești puncte la provocările "Invită prieteni"!
+              </p>
+
+              {inviteCode && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/register?invite=${inviteCode}`}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--input-bg)',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                  <button
+                    onClick={copyInviteLink}
+                    style={{
+                      padding: '12px 24px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: copiedInvite ? 'var(--success)' : 'var(--accent)',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {copiedInvite ? '✓ Copiat!' : '📋 Copiază'}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '24px'
+            }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>🤝 Prieteni</h2>
+
+              {friendsStatus && (
+                <div style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  background: friendsStatus.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: friendsStatus.type === 'success' ? 'var(--success)' : 'var(--error)'
+                }}>
+                  {friendsStatus.message}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px', color: 'var(--muted)' }}>
+                  Caută utilizatori
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={friendQuery}
+                    onChange={(e) => setFriendQuery(e.target.value)}
+                    placeholder="Nume utilizator sau email..."
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text)'
+                    }}
+                  />
+                  <button
+                    onClick={handleSearchFriends}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'var(--accent)',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Caută
+                  </button>
+                </div>
+              </div>
+
+              {friendSearchResults.length > 0 && (
+                <div style={{ marginBottom: '16px', display: 'grid', gap: '10px' }}>
+                  {friendSearchResults.map(user => (
+                    <div key={user.id} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: '700' }}>{user.username}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{user.totalPoints || 0} XP</div>
+                      </div>
+                      <button
+                        onClick={() => handleSendFriendRequest(user.id)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'var(--secondary)',
+                          color: 'white',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        + Adaugă
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Cererile primite</h3>
+                {friendRequests.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Nu ai cereri noi.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {friendRequests.map(req => (
+                      <div key={req.id} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: '700' }}>{req.requester?.username}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{req.requester?.totalPoints || 0} XP</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleAcceptFriendRequest(req.id)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--success)',
+                              color: 'white',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Acceptă
+                          </button>
+                          <button
+                            onClick={() => handleRejectFriendRequest(req.id)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--error)',
+                              color: 'white',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Respinge
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Lista de prieteni</h3>
+                {friends.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Nu ai prieteni încă.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {friends.map(friend => (
+                      <div key={friend.id} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: '700' }}>{friend.username}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{friend.totalPoints || 0} XP</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>ID #{friend.id}</span>
+                          <button
+                            onClick={() => handleUnfriend(friend.id)}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--error)',
+                              color: 'white',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Unfriend
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
 

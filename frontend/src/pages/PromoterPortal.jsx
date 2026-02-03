@@ -11,6 +11,7 @@ export default function PromoterPortal() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState(null);
   const [attractions, setAttractions] = useState([]);
+  const [quizAttractions, setQuizAttractions] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +63,8 @@ export default function PromoterPortal() {
     questions: [createEmptyQuestion()]
   });
 
+  const permissions = stats?.permissions || stats?.Permissions;
+
   useEffect(() => {
     const userRole = getUserRole();
     setRole(userRole);
@@ -104,6 +107,22 @@ export default function PromoterPortal() {
       if (suggRes.status === 'fulfilled') setSuggestions(suggRes.value.data || []);
       if (quizRes.status === 'fulfilled') setQuizzes(quizRes.value.data || []);
 
+      const permissions = statsRes.status === 'fulfilled'
+        ? (statsRes.value.data.permissions || statsRes.value.data.Permissions)
+        : null;
+
+      if (permissions?.canCreateGlobalQuizzes) {
+        const allRes = await api.get('/attractions');
+        const allData = Array.isArray(allRes.data) ? allRes.data : [];
+        const normalized = allData.map(item => ({
+          id: item.id ?? item.Id,
+          name: item.name ?? item.Name
+        }));
+        setQuizAttractions(normalized);
+      } else {
+        setQuizAttractions([]);
+      }
+
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
@@ -112,10 +131,11 @@ export default function PromoterPortal() {
   };
 
   useEffect(() => {
-    if (!quizForm.attractionId && attractions.length > 0) {
-      setQuizForm(prev => ({ ...prev, attractionId: attractions[0].id }));
+    const source = permissions?.canCreateGlobalQuizzes ? quizAttractions : attractions;
+    if (!quizForm.attractionId && source.length > 0) {
+      setQuizForm(prev => ({ ...prev, attractionId: source[0].id }));
     }
-  }, [attractions, quizForm.attractionId]);
+  }, [attractions, quizAttractions, quizForm.attractionId, permissions?.canCreateGlobalQuizzes]);
 
   const handleSubmitApplication = async () => {
     try {
@@ -270,8 +290,13 @@ export default function PromoterPortal() {
     }
 
     try {
+      const availableAttractions = permissions?.canCreateGlobalQuizzes && quizAttractions.length
+        ? quizAttractions
+        : attractions;
+      const safeAttractionId = Number(quizForm.attractionId) || availableAttractions[0]?.id || 0;
+
       const payload = {
-        AttractionId: Number(quizForm.attractionId) || 0,
+        AttractionId: safeAttractionId,
         Title: quizForm.title,
         Description: quizForm.description,
         DifficultyLevel: Number(quizForm.difficultyLevel) || 1,
@@ -293,8 +318,9 @@ export default function PromoterPortal() {
       await api[method](url, payload);
       setStatus({ type: 'success', message: `✅ Quiz ${editingQuizId ? 'actualizat' : 'creat'}!` });
       setEditingQuizId(null);
+      const defaultSource = permissions?.canCreateGlobalQuizzes ? quizAttractions : attractions;
       setQuizForm({
-        attractionId: attractions[0]?.id || 0,
+        attractionId: defaultSource[0]?.id || 0,
         title: '',
         description: '',
         difficultyLevel: 1,
@@ -303,7 +329,12 @@ export default function PromoterPortal() {
       });
       fetchPromoterData();
     } catch (err) {
-      setStatus({ type: 'error', message: '❌ ' + (err.response?.data?.message || 'Eroare') });
+      const apiMessage = err.response?.data?.message;
+      const modelErrors = err.response?.data?.errors;
+      const flattenedErrors = modelErrors
+        ? Object.values(modelErrors).flat().join(' ')
+        : '';
+      setStatus({ type: 'error', message: '❌ ' + (apiMessage || flattenedErrors || 'Eroare') });
     }
   };
 
@@ -318,11 +349,11 @@ export default function PromoterPortal() {
         description: data.description || quiz.description || '',
         difficultyLevel: data.difficultyLevel || quiz.difficultyLevel || 1,
         timeLimit: data.timeLimit || quiz.timeLimit || 60,
-        questions: (data.questions || []).map(q => ({
+        questions: (data.questions && data.questions.length ? data.questions : [createEmptyQuestion()]).map(q => ({
           text: q.text,
           pointsValue: q.pointsValue,
           order: q.order,
-          answers: (q.answers || []).map(a => ({
+          answers: (q.answers && q.answers.length ? q.answers : [createEmptyAnswer(), createEmptyAnswer()]).map(a => ({
             text: a.text,
             isCorrect: a.isCorrect,
             order: a.order
@@ -429,7 +460,7 @@ export default function PromoterPortal() {
 
   // FULL PROMOTER PORTAL
   return (
-    <div style={{
+    <div className="page-container" style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
       paddingLeft: '80px',
@@ -446,7 +477,7 @@ export default function PromoterPortal() {
 
         {/* STATS */}
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
             <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
               <h3 style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>Atracții Aprobate</h3>
               <p style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: 'bold', color: 'var(--success)' }}>{stats.approvedAttractions || 0}</p>
@@ -459,6 +490,18 @@ export default function PromoterPortal() {
               <h3 style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>Propuneri Aprobate</h3>
               <p style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: 'bold', color: 'var(--accent)' }}>{stats.approvedSuggestions || 0}</p>
             </div>
+            {permissions && (
+              <div style={{ background: 'var(--card-bg)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <h3 style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>Prioritate recomandări</h3>
+                <p style={{ margin: '8px 0 0 0', fontSize: '22px', fontWeight: 'bold', color: 'var(--accent)' }}>
+                  {permissions.priorityRank ? `#${permissions.priorityRank}` : '—'}
+                  {permissions.totalPromoters ? ` / ${permissions.totalPromoters}` : ''}
+                </p>
+                <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--muted)' }}>
+                  Nivel: {permissions.priorityTier || 'Standard'}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -480,9 +523,41 @@ export default function PromoterPortal() {
 
         {/* CONTENT */}
         {activeTab === 'dashboard' && (
-          <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <h2 style={{ margin: 0, marginBottom: '20px' }}>Pregled Portal</h2>
-            <p style={{ color: 'var(--muted)' }}>Alege o secțiune din meniu pentru a gestiona atracțiile tale.</p>
+          <div style={{ display: 'grid', gap: '16px' }}>
+            <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <h2 style={{ margin: 0, marginBottom: '12px' }}>Permisiuni gamification</h2>
+              <p style={{ color: 'var(--muted)', marginBottom: '16px' }}>
+                Deblochezi opțiuni pe măsură ce adaugi atracții și quiz-uri.
+              </p>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Quiz-uri globale</span>
+                  <strong style={{ color: permissions?.canCreateGlobalQuizzes ? 'var(--success)' : 'var(--muted)' }}>
+                    {permissions?.canCreateGlobalQuizzes ? 'Activă' : 'Blocată'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Atracții fără aprobare</span>
+                  <strong style={{ color: permissions?.canAutoApproveAttractions ? 'var(--success)' : 'var(--muted)' }}>
+                    {permissions?.canAutoApproveAttractions ? 'Activă' : 'Blocată'}
+                  </strong>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                  Atracții adăugate: {permissions?.attractionsCreated ?? 0}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <h2 style={{ margin: 0, marginBottom: '12px' }}>Prioritate afișare</h2>
+              <p style={{ color: 'var(--muted)', marginBottom: '12px' }}>
+                Scor activitate: {permissions?.activityScore ?? 0}
+              </p>
+              <p style={{ color: 'var(--muted)' }}>
+                Poziție: {permissions?.priorityRank ? `#${permissions.priorityRank}` : '—'}
+                {permissions?.totalPromoters ? ` / ${permissions.totalPromoters}` : ''}
+              </p>
+            </div>
           </div>
         )}
 
@@ -613,7 +688,9 @@ export default function PromoterPortal() {
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Atracție</label>
                   <select value={quizForm.attractionId} onChange={(e) => setQuizForm({...quizForm, attractionId: parseInt(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
-                    {attractions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {(permissions?.canCreateGlobalQuizzes ? quizAttractions : attractions).map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -673,7 +750,7 @@ export default function PromoterPortal() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={handleSaveQuiz} style={{ flex: 1, padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>💾 Salvează</button>
                   {editingQuizId && (
-                    <button onClick={() => { setEditingQuizId(null); setQuizForm({ attractionId: attractions[0]?.id || 0, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [createEmptyQuestion()] }); }} style={{ flex: 1, padding: '10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>✗ Anulează</button>
+                    <button onClick={() => { const defaultSource = permissions?.canCreateGlobalQuizzes ? quizAttractions : attractions; setEditingQuizId(null); setQuizForm({ attractionId: defaultSource[0]?.id || 0, title: '', description: '', difficultyLevel: 1, timeLimit: 60, questions: [createEmptyQuestion()] }); }} style={{ flex: 1, padding: '10px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>✗ Anulează</button>
                   )}
                 </div>
               </div>
@@ -690,7 +767,7 @@ export default function PromoterPortal() {
                     <div key={quiz.id} style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <p style={{ margin: 0, fontWeight: '600', fontSize: '14px' }}>{quiz.title}</p>
-                        <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '12px' }}>Atracție: {quiz.attractionName || attractions.find(a => a.id === quiz.attractionId)?.name || 'Necunoscută'}</p>
+                        <p style={{ margin: '4px 0 0 0', color: 'var(--muted)', fontSize: '12px' }}>Atracție: {quiz.attractionName || (permissions?.canCreateGlobalQuizzes ? quizAttractions : attractions).find(a => a.id === quiz.attractionId)?.name || 'Necunoscută'}</p>
                         <p style={{ margin: '2px 0 0 0', color: 'var(--muted)', fontSize: '11px' }}>Dificultate: {['Ușor', 'Mediu', 'Greu'][quiz.difficultyLevel - 1] || 'Ușor'}</p>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>

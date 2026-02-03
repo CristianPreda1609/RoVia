@@ -8,10 +8,12 @@ namespace RoVia.API.Services;
 public class PromoterWorkflowService
 {
     private readonly AppDbContext _context;
+    private readonly ActivityPointsService _activityPoints;
 
-    public PromoterWorkflowService(AppDbContext context)
+    public PromoterWorkflowService(AppDbContext context, ActivityPointsService activityPoints)
     {
         _context = context;
+        _activityPoints = activityPoints;
     }
 
     public async Task<PromoterApplicationResponse> SubmitApplicationAsync(int userId, PromoterApplicationRequest request)
@@ -112,7 +114,42 @@ public class PromoterWorkflowService
         };
 
         _context.AttractionSuggestions.Add(suggestion);
+
+        var permissions = await GetPromoterPermissionsAsync(promoterId);
+        if (request.CreatesNewAttraction && permissions.CanAutoApproveAttractions)
+        {
+            var attraction = new Attraction
+            {
+                Name = request.ProposedName,
+                Description = request.ProposedDescription,
+                Latitude = request.ProposedLatitude ?? 0,
+                Longitude = request.ProposedLongitude ?? 0,
+                Type = request.ProposedType ?? 0,
+                Region = request.ProposedRegion ?? string.Empty,
+                ImageUrl = request.ProposedImageUrl ?? string.Empty,
+                Rating = 5.0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedByUserId = promoterId,
+                IsApproved = true
+            };
+
+            _context.Attractions.Add(attraction);
+            suggestion.Attraction = attraction;
+            suggestion.Status = SuggestionStatus.Approved;
+            suggestion.ReviewedAt = DateTime.UtcNow;
+            suggestion.ReviewedByUserId = promoterId;
+            suggestion.AdminResponse = "Auto-aprobat (promotor de încredere).";
+        }
+
         await _context.SaveChangesAsync();
+
+        await _activityPoints.AwardActivityAsync(promoterId, "Promoter", ActivityAction.SuggestionSubmitted);
+        if (suggestion.Status == SuggestionStatus.Approved && suggestion.CreatesNewAttraction)
+        {
+            await _activityPoints.AwardActivityAsync(promoterId, "Promoter", ActivityAction.AttractionCreated);
+            await _activityPoints.AwardActivityAsync(promoterId, "Promoter", ActivityAction.SuggestionApproved);
+        }
 
         suggestion.Promoter = user;
         return MapSuggestion(suggestion);
@@ -139,6 +176,7 @@ public class PromoterWorkflowService
 
     public async Task<object> GetDashboardAsync(int promoterId)
     {
+        var permissions = await GetPromoterPermissionsAsync(promoterId);
         var latestApplication = await GetLatestApplicationAsync(promoterId);
         var pendingSuggestions = await _context.AttractionSuggestions
             .CountAsync(s => s.PromoterId == promoterId && s.Status == SuggestionStatus.Pending);
@@ -152,8 +190,63 @@ public class PromoterWorkflowService
             LatestApplication = latestApplication,
             PendingSuggestions = pendingSuggestions,
             ApprovedSuggestions = approvedSuggestions,
-            ApprovedAttractions = approvedAttractions
+            ApprovedAttractions = approvedAttractions,
+            Permissions = new
+            {
+                permissions.CanCreateGlobalQuizzes,
+                permissions.CanAutoApproveAttractions,
+                permissions.AttractionsCreated,
+                permissions.ActivityScore,
+                permissions.PriorityRank,
+                permissions.TotalPromoters,
+                permissions.PriorityTier
+            }
         };
+    }
+
+    private async Task<(bool CanCreateGlobalQuizzes, bool CanAutoApproveAttractions, int AttractionsCreated, int ActivityScore, int PriorityRank, int TotalPromoters, string PriorityTier)> GetPromoterPermissionsAsync(int promoterId)
+    {
+        var stats = await _context.UserActivityStats.FirstOrDefaultAsync(s => s.UserId == promoterId)
+            ?? new UserActivityStats { UserId = promoterId };
+
+        var attractionsCreated = stats.AttractionsCreated;
+        var activityScore = stats.AttractionsCreated + stats.AttractionsUpdated + stats.QuizzesCreated + stats.QuizzesUpdated + stats.SuggestionsApproved;
+
+        var promoterRoleId = await _context.Roles
+            .Where(r => r.Name == "Promoter")
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync();
+
+        var promoterIds = await _context.Users
+            .Where(u => u.RoleId == promoterRoleId)
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        var totals = await _context.UserActivityStats
+            .Where(s => promoterIds.Contains(s.UserId))
+            .Select(s => new { s.UserId, Score = s.AttractionsCreated + s.AttractionsUpdated + s.QuizzesCreated + s.QuizzesUpdated + s.SuggestionsApproved })
+            .OrderByDescending(s => s.Score)
+            .ToListAsync();
+
+        var totalPromoters = totals.Count;
+        var rank = 0;
+        if (totalPromoters > 0)
+        {
+            var index = totals.FindIndex(s => s.UserId == promoterId);
+            rank = index >= 0 ? index + 1 : totalPromoters + 1;
+        }
+
+        var tier = activityScore >= 20 ? "Ridicată" : activityScore >= 10 ? "Mediu" : "Standard";
+
+        return (
+            CanCreateGlobalQuizzes: attractionsCreated >= 5,
+            CanAutoApproveAttractions: attractionsCreated >= 20,
+            AttractionsCreated: attractionsCreated,
+            ActivityScore: activityScore,
+            PriorityRank: rank,
+            TotalPromoters: totalPromoters,
+            PriorityTier: tier
+        );
     }
 
     public async Task<List<OwnedAttractionDto>> GetOwnedAttractionsAsync(int promoterId)
@@ -190,6 +283,7 @@ public class PromoterWorkflowService
         attraction.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+        await _activityPoints.AwardActivityAsync(promoterId, "Promoter", ActivityAction.AttractionUpdated);
         return true;
     }
 
