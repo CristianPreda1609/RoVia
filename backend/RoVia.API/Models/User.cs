@@ -22,4 +22,6 @@ public class User
     public ICollection<AttractionSuggestion> AttractionSuggestions { get; set; } = new List<AttractionSuggestion>();
     public ICollection<LeaderboardArchive> LeaderboardArchives { get; set; } = new List<LeaderboardArchive>();
     public ICollection<UserVoucher> UserVouchers { get; set; } = new List<UserVoucher>();
+    public ICollection<Friendship> FriendRequestsSent { get; set; } = new List<Friendship>();
+    public ICollection<Friendship> FriendRequestsReceived { get; set; } = new List<Friendship>();
 }

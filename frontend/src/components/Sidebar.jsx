@@ -144,7 +144,7 @@ export default function Sidebar({ isOpen, onClose }) {
     left: 0,
     height: '100vh',
     zIndex: 70,
-    background: 'var(--card-bg)',
+    background: 'var(--sidebar-bg)',
     borderRight: '1px solid var(--border)',
     display: 'flex',
     flexDirection: 'column',
@@ -183,7 +183,7 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   return (
-    <div style={containerStyle}>
+    <div className="sidebar" style={containerStyle}>
       {/* Header cu logo */}
       <div style={{ padding: '16px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: isOpen ? 'space-between' : 'center' }}>
         <span style={{ fontWeight: 700, fontSize: isOpen ? 18 : 16, color: 'var(--accent)' }}>{isOpen ? 'RoVia' : 'RV'}</span>

@@ -423,3 +423,4 @@ C:\Users\Adriana\Desktop\RoVia\backend\RoVia.API\obj\Debug\net8.0\RoVia.API.genr
 C:\Users\Adriana\Desktop\RoVia\backend\RoVia.API\obj\Debug\net8.0\ref\RoVia.API.dll
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\bin\Debug\net8.0\package-lock.json
 C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\bin\Debug\net8.0\package.json
+C:\Users\Cristi\Desktop\proiect_ing_prog\RoVia\backend\RoVia.API\bin\Debug\net8.0\appsettings.Local.json

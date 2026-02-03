@@ -8,10 +8,12 @@ namespace RoVia.API.Services;
 public class QuizService
 {
     private readonly AppDbContext _context;
+    private readonly ChallengeProgressService _challengeProgress;
 
-    public QuizService(AppDbContext context)
+    public QuizService(AppDbContext context, ChallengeProgressService challengeProgress)
     {
         _context = context;
+        _challengeProgress = challengeProgress;
     }
 
     private static Question BuildQuestionEntity(QuizQuestionRequest request, int order)
@@ -141,6 +143,9 @@ public class QuizService
         }
 
         await _context.SaveChangesAsync();
+
+        // Track challenge progress pentru CompleteQuiz
+        await _challengeProgress.TrackQuizCompletionAsync(userId);
 
         return new QuizSubmissionResult
         {

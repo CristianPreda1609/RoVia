@@ -11,10 +11,12 @@ namespace RoVia.API.Services;
 public class ProfileService
 {
     private readonly AppDbContext _context;
+    private readonly ChallengeProgressService _challengeProgress;
 
-    public ProfileService(AppDbContext context)
+    public ProfileService(AppDbContext context, ChallengeProgressService challengeProgress)
     {
         _context = context;
+        _challengeProgress = challengeProgress;
     }
 
     public async Task<dynamic> GetUserProfileAsync(int userId)
@@ -144,6 +146,11 @@ public class ProfileService
 
             if (alreadyUnlocked) continue;
 
+            if (string.IsNullOrWhiteSpace(badge.Criteria))
+            {
+                continue;
+            }
+
             var criteria = System.Text.Json.JsonDocument.Parse(badge.Criteria);
             bool shouldUnlock = true;
 
@@ -171,6 +178,9 @@ public class ProfileService
                     BadgeId = badge.Id,
                     UnlockedAt = DateTime.UtcNow
                 });
+                
+                // Track challenge progress pentru EarnBadges
+                await _challengeProgress.TrackBadgeEarnedAsync(userId);
             }
         }
 
@@ -240,6 +250,99 @@ public class ProfileService
         return leaderboard;
     }
 
+    public async Task<(IReadOnlyList<LeaderboardEntryDto> Items, int Total)> GetLeaderboardPagedAsync(bool monthly, int page, int pageSize, string? sortBy, string? order)
+    {
+        var normalized = NormalizeLeaderboardSort(monthly, sortBy, order);
+        var (snapshots, total) = await FetchLeaderboardSnapshotsAsync(_context.Users.AsNoTracking(), monthly, page, pageSize, normalized.SortBy, normalized.Desc);
+        var items = await BuildLeaderboardEntriesAsync(snapshots, monthly, page, pageSize);
+        return (items, total);
+    }
+
+    public async Task<(IReadOnlyList<LeaderboardEntryDto> Items, int Total)> GetFriendsLeaderboardPagedAsync(int userId, bool monthly, int page, int pageSize, string? sortBy, string? order)
+    {
+        var friendIds = await _context.Friendships
+            .Where(f => f.Status == FriendshipStatus.Accepted && (f.RequesterId == userId || f.AddresseeId == userId))
+            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
+            .ToListAsync();
+
+        if (!friendIds.Contains(userId))
+        {
+            friendIds.Add(userId);
+        }
+
+        var normalized = NormalizeLeaderboardSort(monthly, sortBy, order);
+        var scopedUsers = _context.Users.AsNoTracking().Where(u => friendIds.Contains(u.Id));
+        var (snapshots, total) = await FetchLeaderboardSnapshotsAsync(scopedUsers, monthly, page, pageSize, normalized.SortBy, normalized.Desc);
+        var items = await BuildLeaderboardEntriesAsync(snapshots, monthly, page, pageSize);
+        return (items, total);
+    }
+
+    public async Task<IReadOnlyList<LeaderboardEntryDto>> GetFriendsLeaderboardAsync(int userId, bool monthly)
+    {
+        var friendIds = await _context.Friendships
+            .Where(f => f.Status == FriendshipStatus.Accepted && (f.RequesterId == userId || f.AddresseeId == userId))
+            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
+            .ToListAsync();
+
+        if (!friendIds.Contains(userId))
+        {
+            friendIds.Add(userId);
+        }
+
+        var users = await _context.Users
+            .AsNoTracking()
+            .Where(u => friendIds.Contains(u.Id))
+            .OrderByDescending(u => monthly ? u.MonthlyPoints : u.TotalPoints)
+            .ThenBy(u => u.CreatedAt)
+            .ToListAsync();
+
+        if (users.Count == 0)
+        {
+            return Array.Empty<LeaderboardEntryDto>();
+        }
+
+        var userIds = users.Select(u => u.Id).ToList();
+
+        var completionLookup = await _context.UserProgresses
+            .Where(up => userIds.Contains(up.UserId) && up.IsCompleted)
+            .GroupBy(up => up.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key,
+                Count = g.Count(),
+                LastCompletedAt = g.Max(x => x.CompletedAt)
+            })
+            .ToDictionaryAsync(x => x.UserId, x => (x.Count, x.LastCompletedAt));
+
+        var leaderboard = new List<LeaderboardEntryDto>(users.Count);
+
+        for (var index = 0; index < users.Count; index++)
+        {
+            var user = users[index];
+            var levelInfo = CalculateLevel(user.TotalPoints);
+            completionLookup.TryGetValue(user.Id, out var progressSnapshot);
+
+            leaderboard.Add(new LeaderboardEntryDto
+            {
+                UserId = user.Id,
+                Username = user.Username,
+                TotalPoints = user.TotalPoints,
+                MonthlyPoints = user.MonthlyPoints,
+                Level = levelInfo.Level,
+                LevelName = levelInfo.Name,
+                LevelProgress = levelInfo.Progress,
+                PointsToNextLevel = levelInfo.PointsToNextLevel,
+                Rank = index + 1,
+                QuizzesCompleted = progressSnapshot.Count,
+                LastCompletedAt = progressSnapshot.LastCompletedAt,
+                JoinedAt = user.CreatedAt,
+                IsMonthly = monthly
+            });
+        }
+
+        return leaderboard;
+    }
+
     public async Task<LeaderboardEntryDto?> GetUserLeaderboardEntryAsync(int userId)
     {
         var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
@@ -277,6 +380,181 @@ public class ProfileService
             JoinedAt = user.CreatedAt,
             IsMonthly = false
         };
+    }
+
+    private static (string SortBy, bool Desc) NormalizeLeaderboardSort(bool monthly, string? sortBy, string? order)
+    {
+        var normalizedSort = string.IsNullOrWhiteSpace(sortBy)
+            ? (monthly ? "monthlyPoints" : "totalPoints")
+            : sortBy.Trim().ToLowerInvariant();
+
+        var desc = string.IsNullOrWhiteSpace(order) || order.Trim().Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+        return normalizedSort switch
+        {
+            "monthlypoints" => ("monthlyPoints", desc),
+            "totalpoints" => ("totalPoints", desc),
+            "quizzescompleted" => ("quizzesCompleted", desc),
+            "joinedat" => ("joinedAt", desc),
+            _ => (monthly ? "monthlyPoints" : "totalPoints", desc)
+        };
+    }
+
+    private async Task<(List<LeaderboardUserSnapshot> Items, int Total)> FetchLeaderboardSnapshotsAsync(
+        IQueryable<User> usersQuery,
+        bool monthly,
+        int page,
+        int pageSize,
+        string sortBy,
+        bool desc)
+    {
+        var currentPage = Math.Max(1, page);
+        var size = Math.Clamp(pageSize, 5, 100);
+        var total = await usersQuery.CountAsync();
+
+        if (total == 0)
+        {
+            return (new List<LeaderboardUserSnapshot>(), 0);
+        }
+
+        if (sortBy == "quizzesCompleted")
+        {
+            var baseUsers = await usersQuery
+                .Select(u => new LeaderboardUserSnapshot
+                {
+                    Id = u.Id,
+                    Username = u.Username,
+                    TotalPoints = u.TotalPoints,
+                    MonthlyPoints = u.MonthlyPoints,
+                    CreatedAt = u.CreatedAt,
+                    QuizzesCompleted = 0
+                })
+                .ToListAsync();
+
+            var counts = await _context.UserProgresses
+                .Where(up => up.IsCompleted)
+                .GroupBy(up => up.UserId)
+                .Select(g => new { UserId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.UserId, x => x.Count);
+
+            foreach (var user in baseUsers)
+            {
+                if (counts.TryGetValue(user.Id, out var count))
+                {
+                    user.QuizzesCompleted = count;
+                }
+            }
+
+            var ordered = desc
+                ? baseUsers.OrderByDescending(x => x.QuizzesCompleted).ThenBy(x => x.CreatedAt)
+                : baseUsers.OrderBy(x => x.QuizzesCompleted).ThenBy(x => x.CreatedAt);
+
+            var items = ordered
+                .Skip((currentPage - 1) * size)
+                .Take(size)
+                .ToList();
+
+            return (items, total);
+        }
+
+        var orderedUsers = sortBy switch
+        {
+            "monthlyPoints" => desc
+                ? usersQuery.OrderByDescending(u => u.MonthlyPoints).ThenBy(u => u.CreatedAt)
+                : usersQuery.OrderBy(u => u.MonthlyPoints).ThenBy(u => u.CreatedAt),
+            "joinedAt" => desc
+                ? usersQuery.OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.TotalPoints)
+                : usersQuery.OrderBy(u => u.CreatedAt).ThenByDescending(u => u.TotalPoints),
+            _ => desc
+                ? usersQuery.OrderByDescending(u => u.TotalPoints).ThenBy(u => u.CreatedAt)
+                : usersQuery.OrderBy(u => u.TotalPoints).ThenBy(u => u.CreatedAt)
+        };
+
+        var results = await orderedUsers
+            .Skip((currentPage - 1) * size)
+            .Take(size)
+            .Select(u => new LeaderboardUserSnapshot
+            {
+                Id = u.Id,
+                Username = u.Username,
+                TotalPoints = u.TotalPoints,
+                MonthlyPoints = u.MonthlyPoints,
+                CreatedAt = u.CreatedAt,
+                QuizzesCompleted = 0
+            })
+            .ToListAsync();
+
+        return (results, total);
+    }
+
+    private async Task<List<LeaderboardEntryDto>> BuildLeaderboardEntriesAsync(
+        List<LeaderboardUserSnapshot> snapshots,
+        bool monthly,
+        int page,
+        int pageSize)
+    {
+        if (snapshots.Count == 0)
+        {
+            return new List<LeaderboardEntryDto>();
+        }
+
+        var userIds = snapshots.Select(s => s.Id).ToList();
+
+        var completionLookup = await _context.UserProgresses
+            .Where(up => userIds.Contains(up.UserId) && up.IsCompleted)
+            .GroupBy(up => up.UserId)
+            .Select(g => new
+            {
+                UserId = g.Key,
+                Count = g.Count(),
+                LastCompletedAt = g.Max(x => x.CompletedAt)
+            })
+            .ToDictionaryAsync(x => x.UserId, x => (x.Count, x.LastCompletedAt));
+
+        var leaderboard = new List<LeaderboardEntryDto>(snapshots.Count);
+        var baseRank = (Math.Max(1, page) - 1) * Math.Clamp(pageSize, 5, 100);
+
+        for (var index = 0; index < snapshots.Count; index++)
+        {
+            var user = snapshots[index];
+            var levelInfo = CalculateLevel(user.TotalPoints);
+            completionLookup.TryGetValue(user.Id, out var progressSnapshot);
+
+            var quizCount = progressSnapshot.Count;
+            if (user.QuizzesCompleted > 0)
+            {
+                quizCount = user.QuizzesCompleted;
+            }
+
+            leaderboard.Add(new LeaderboardEntryDto
+            {
+                UserId = user.Id,
+                Username = user.Username,
+                TotalPoints = user.TotalPoints,
+                MonthlyPoints = user.MonthlyPoints,
+                Level = levelInfo.Level,
+                LevelName = levelInfo.Name,
+                LevelProgress = levelInfo.Progress,
+                PointsToNextLevel = levelInfo.PointsToNextLevel,
+                Rank = baseRank + index + 1,
+                QuizzesCompleted = quizCount,
+                LastCompletedAt = progressSnapshot.LastCompletedAt,
+                JoinedAt = user.CreatedAt,
+                IsMonthly = monthly
+            });
+        }
+
+        return leaderboard;
+    }
+
+    private sealed class LeaderboardUserSnapshot
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public int TotalPoints { get; set; }
+        public int MonthlyPoints { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int QuizzesCompleted { get; set; }
     }
 
     public async Task<IReadOnlyList<LeaderboardEntryDto>> GetMonthlyLeaderboardAsync(int take = 50)
@@ -401,7 +679,7 @@ public class ProfileService
     private sealed class LevelInfo
     {
         public int Level { get; init; }
-        public string Name { get; init; }
+        public string Name { get; init; } = string.Empty;
         public double Progress { get; init; }
         public int PointsToNextLevel { get; init; }
     }

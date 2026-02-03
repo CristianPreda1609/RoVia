@@ -13,6 +13,11 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
+  const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [friendQuery, setFriendQuery] = useState('');
+  const [friendSearchResults, setFriendSearchResults] = useState([]);
+  const [friendsStatus, setFriendsStatus] = useState(null);
 
   const initialTab = useMemo(() => {
     return searchParams.get('tab') === 'account' ? 'account' : 'overview';
@@ -21,6 +26,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchFriends();
+    fetchFriendRequests();
   }, []);
 
   useEffect(() => {
@@ -81,6 +88,81 @@ export default function Dashboard() {
     }
   };
 
+  const fetchFriends = async () => {
+    try {
+      const res = await api.get('/friends');
+      setFriends(res.data || []);
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut încărca lista de prieteni.' });
+    }
+  };
+
+  const fetchFriendRequests = async () => {
+    try {
+      const res = await api.get('/friends/requests');
+      setFriendRequests(res.data || []);
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut încărca cererile de prietenie.' });
+    }
+  };
+
+  const handleSearchFriends = async () => {
+    if (!friendQuery.trim()) {
+      setFriendSearchResults([]);
+      return;
+    }
+
+    try {
+      const res = await api.get('/friends/search', { params: { query: friendQuery.trim() } });
+      setFriendSearchResults(res.data || []);
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Căutarea a eșuat.' });
+    }
+  };
+
+  const handleSendFriendRequest = async (userId) => {
+    try {
+      await api.post(`/friends/request/${userId}`);
+      setFriendsStatus({ type: 'success', message: 'Cerere de prietenie trimisă.' });
+      setFriendSearchResults([]);
+      setFriendQuery('');
+      fetchFriendRequests();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: err.response?.data?.message || 'Nu am putut trimite cererea.' });
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId) => {
+    try {
+      await api.post(`/friends/accept/${requestId}`);
+      setFriendsStatus({ type: 'success', message: 'Cerere acceptată.' });
+      fetchFriendRequests();
+      fetchFriends();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut accepta cererea.' });
+    }
+  };
+
+  const handleRejectFriendRequest = async (requestId) => {
+    try {
+      await api.post(`/friends/reject/${requestId}`);
+      setFriendsStatus({ type: 'success', message: 'Cerere respinsă.' });
+      fetchFriendRequests();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: 'Nu am putut respinge cererea.' });
+    }
+  };
+
+  const handleUnfriend = async (friendId) => {
+    try {
+      await api.delete(`/friends/${friendId}`);
+      setFriendsStatus({ type: 'success', message: 'Prieten eliminat.' });
+      fetchFriends();
+    } catch (err) {
+      setFriendsStatus({ type: 'error', message: err.response?.data?.message || 'Nu am putut elimina prietenul.' });
+    }
+  };
+
   if (loading) return (
     <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text)' }}>
       <h2>Se încarcă profilul...</h2>
@@ -88,7 +170,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div style={{
+    <div className="page-container" style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
       color: 'var(--text)',
@@ -240,17 +322,77 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* BADGES */}
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Insigne</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800' }}>{(profile?.badges || profile?.Badges || []).length}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '13px' }}>insigne deblocate</div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {(profile?.badges || profile?.Badges || []).slice(0, 6).map((badge, idx) => (
+                    <div
+                      key={badge.id || badge.Id || idx}
+                      title={badge.name || badge.Name}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px'
+                      }}
+                    >
+                      {badge.iconUrl || badge.IconUrl || '🏅'}
+                    </div>
+                  ))}
+                  {(profile?.badges || profile?.Badges || []).length === 0 && (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Încă nu ai insigne.</div>
+                  )}
+                </div>
+
+                <div style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(16, 185, 129, 0.08)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Următoarea insignă</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px'
+                    }}>
+                      {(profile?.nextBadge || profile?.NextBadge)?.iconUrl || (profile?.nextBadge || profile?.NextBadge)?.IconUrl || '🏅'}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700' }}>{(profile?.nextBadge || profile?.NextBadge)?.name || (profile?.nextBadge || profile?.NextBadge)?.Name || 'Țintă nouă'}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                        {(profile?.nextBadge || profile?.NextBadge)?.pointsRemaining ?? (profile?.nextBadge || profile?.NextBadge)?.PointsRemaining ?? 0} XP rămas
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </>
         )}
 
         {activeTab === 'account' && (
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border)',
-            borderRadius: '16px',
-            padding: '32px'
-          }}>
+          <>
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '32px',
+              marginBottom: '20px'
+            }}>
             <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ margin: 0, fontSize: '20px' }}>Informații Personale</h2>
               <button
@@ -372,7 +514,196 @@ export default function Dashboard() {
                 💾 Salvează Schimbări
               </button>
             )}
-          </div>
+            </div>
+
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '24px'
+            }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>🤝 Prieteni</h2>
+
+              {friendsStatus && (
+                <div style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  background: friendsStatus.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: friendsStatus.type === 'success' ? 'var(--success)' : 'var(--error)'
+                }}>
+                  {friendsStatus.message}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px', color: 'var(--muted)' }}>
+                  Caută utilizatori
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={friendQuery}
+                    onChange={(e) => setFriendQuery(e.target.value)}
+                    placeholder="Nume utilizator sau email..."
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text)'
+                    }}
+                  />
+                  <button
+                    onClick={handleSearchFriends}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'var(--accent)',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Caută
+                  </button>
+                </div>
+              </div>
+
+              {friendSearchResults.length > 0 && (
+                <div style={{ marginBottom: '16px', display: 'grid', gap: '10px' }}>
+                  {friendSearchResults.map(user => (
+                    <div key={user.id} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: '700' }}>{user.username}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{user.totalPoints || 0} XP</div>
+                      </div>
+                      <button
+                        onClick={() => handleSendFriendRequest(user.id)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'var(--secondary)',
+                          color: 'white',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        + Adaugă
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Cererile primite</h3>
+                {friendRequests.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Nu ai cereri noi.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {friendRequests.map(req => (
+                      <div key={req.id} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: '700' }}>{req.requester?.username}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{req.requester?.totalPoints || 0} XP</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleAcceptFriendRequest(req.id)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--success)',
+                              color: 'white',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Acceptă
+                          </button>
+                          <button
+                            onClick={() => handleRejectFriendRequest(req.id)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--error)',
+                              color: 'white',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Respinge
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Lista de prieteni</h3>
+                {friends.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: 'var(--muted)' }}>Nu ai prieteni încă.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {friends.map(friend => (
+                      <div key={friend.id} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: '700' }}>{friend.username}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{friend.totalPoints || 0} XP</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>ID #{friend.id}</span>
+                          <button
+                            onClick={() => handleUnfriend(friend.id)}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--error)',
+                              color: 'white',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Unfriend
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
 

@@ -24,21 +24,56 @@ export default function Leaderboard() {
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isMonthly, setIsMonthly] = useState(false);
+  const [scope, setScope] = useState('global');
+  const [sortBy, setSortBy] = useState('totalPoints');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [challengeTab, setChallengeTab] = useState('daily');
+  const [challenges, setChallenges] = useState({ Daily: [], Weekly: [] });
+  const [challengesLoading, setChallengesLoading] = useState(true);
+  const [challengesError, setChallengesError] = useState('');
   const auth = useAuth();
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const { data } = await api.get(`/profile/leaderboard?take=50&monthly=${isMonthly}`);
-      setEntries(Array.isArray(data) ? data : []);
+      if (scope === 'friends' && !auth?.userId) {
+        setEntries([]);
+        setTotalItems(0);
+        setError('Trebuie să fii autentificat pentru clasamentul de prieteni.');
+        setLastUpdated(new Date());
+        setLoading(false);
+        return;
+      }
+
+      const effectiveSort = sortBy === 'monthlyPoints' && !isMonthly ? 'totalPoints' : sortBy;
+      const endpoint = scope === 'friends' ? '/profile/leaderboard/friends' : '/profile/leaderboard/paged';
+      const { data } = await api.get(endpoint, {
+        params: {
+          monthly: isMonthly,
+          page,
+          pageSize,
+          sortBy: effectiveSort,
+          order: sortOrder
+        }
+      });
+
+      setEntries(Array.isArray(data?.items) ? data.items : []);
+      setTotalItems(typeof data?.total === 'number' ? data.total : 0);
       setLastUpdated(new Date());
       setError('');
     } catch (err) {
       console.error('Leaderboard fetch failed', err);
-      setError('Nu am putut actualiza leaderboard-ul. Încearcă din nou.');
+      if (scope === 'friends' && !auth?.userId) {
+        setError('Trebuie să fii autentificat pentru clasamentul de prieteni.');
+      } else {
+        setError('Nu am putut actualiza leaderboard-ul. Încearcă din nou.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [isMonthly]);
+  }, [auth?.userId, isMonthly, page, pageSize, scope, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -46,8 +81,44 @@ export default function Leaderboard() {
     return () => clearInterval(intervalId);
   }, [fetchLeaderboard]);
 
+  const fetchChallenges = useCallback(async () => {
+    try {
+      const url = auth?.userId ? `/challenges/active?userId=${auth.userId}` : '/challenges/active';
+      const { data } = await api.get(url);
+      setChallenges({
+        Daily: Array.isArray(data?.Daily) ? data.Daily : [],
+        Weekly: Array.isArray(data?.Weekly) ? data.Weekly : []
+      });
+      setChallengesError('');
+    } catch (err) {
+      console.error('Challenges fetch failed', err);
+      setChallengesError('Nu am putut încărca provocările.');
+    } finally {
+      setChallengesLoading(false);
+    }
+  }, [auth?.userId]);
+
+  const handleAcceptChallenge = async (challengeId) => {
+    if (!auth?.userId) {
+      alert('Trebuie să fii autentificat pentru a accepta provocări!');
+      return;
+    }
+    try {
+      await api.post(`/challenges/${challengeId}/accept`, auth.userId);
+      await fetchChallenges(); // Reîncarcă provocările cu progress actualizat
+    } catch (err) {
+      console.error('Accept challenge failed', err);
+      alert('Nu am putut accepta provocarea. Încearcă din nou.');
+    }
+  };
+
+  useEffect(() => {
+    fetchChallenges();
+  }, [fetchChallenges]);
+
   const topThree = useMemo(() => entries.slice(0, 3), [entries]);
   const rest = useMemo(() => entries.slice(3), [entries]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalItems / pageSize)), [totalItems, pageSize]);
 
   const getMedalEmoji = (rank) => {
     if (rank === 1) return '🥇';
@@ -64,7 +135,7 @@ export default function Leaderboard() {
   };
 
   return (
-    <div style={{ 
+    <div className="page-container" style={{ 
       padding: '40px 20px',
       paddingLeft: 'calc(80px + 20px)',
       minHeight: 'calc(100vh - 56px)', 
@@ -85,7 +156,7 @@ export default function Leaderboard() {
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
               }}>
-                🏆 Clasament Global
+                🏆 {scope === 'friends' ? 'Clasament Prieteni' : 'Clasament Global'}
               </h1>
               <p style={{
                 margin: 0,
@@ -98,46 +169,90 @@ export default function Leaderboard() {
             </div>
             
             {/* Tab Selector */}
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              background: 'var(--topbar-bg)',
-              padding: '6px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)'
-            }}>
-              <button
-                onClick={() => setIsMonthly(false)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: !isMonthly ? 'var(--accent)' : 'transparent',
-                  color: !isMonthly ? 'white' : 'var(--muted)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 200ms ease',
-                  fontSize: '14px'
-                }}
-              >
-                🏆 All-time
-              </button>
-              <button
-                onClick={() => setIsMonthly(true)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: isMonthly ? 'var(--accent)' : 'transparent',
-                  color: isMonthly ? 'white' : 'var(--muted)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 200ms ease',
-                  fontSize: '14px'
-                }}
-              >
-                📅 Lunar
-              </button>
+            <div style={{ display: 'grid', gap: '8px' }}>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                background: 'var(--topbar-bg)',
+                padding: '6px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)'
+              }}>
+                <button
+                  onClick={() => { setIsMonthly(false); setSortBy('totalPoints'); setPage(1); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: !isMonthly ? 'var(--accent)' : 'transparent',
+                    color: !isMonthly ? 'white' : 'var(--muted)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 200ms ease',
+                    fontSize: '14px'
+                  }}
+                >
+                  🏆 All-time
+                </button>
+                <button
+                  onClick={() => { setIsMonthly(true); setSortBy('monthlyPoints'); setPage(1); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: isMonthly ? 'var(--accent)' : 'transparent',
+                    color: isMonthly ? 'white' : 'var(--muted)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 200ms ease',
+                    fontSize: '14px'
+                  }}
+                >
+                  📅 Lunar
+                </button>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                background: 'var(--topbar-bg)',
+                padding: '6px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)'
+              }}>
+                <button
+                  onClick={() => { setScope('global'); setPage(1); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: scope === 'global' ? 'var(--accent)' : 'transparent',
+                    color: scope === 'global' ? 'white' : 'var(--muted)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 200ms ease',
+                    fontSize: '14px'
+                  }}
+                >
+                  🌍 Global
+                </button>
+                <button
+                  onClick={() => { setScope('friends'); setPage(1); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: scope === 'friends' ? 'var(--accent)' : 'transparent',
+                    color: scope === 'friends' ? 'white' : 'var(--muted)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 200ms ease',
+                    fontSize: '14px'
+                  }}
+                >
+                  👥 Prieteni
+                </button>
+              </div>
             </div>
           </div>
 
@@ -151,7 +266,164 @@ export default function Leaderboard() {
               ⟳ {lastUpdated.toLocaleTimeString('ro-RO')}
             </span>
           )}
-        </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', gap: '16px' }}>
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '10px 12px'
+            }}>
+              <label style={{ fontSize: '12px', color: 'var(--muted)' }}>Sortare</label>
+              <select
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              >
+                <option value={isMonthly ? 'monthlyPoints' : 'totalPoints'}>Puncte</option>
+                <option value="quizzesCompleted">Quiz-uri finalizate</option>
+                <option value="joinedAt">Data înscrierii</option>
+              </select>
+              <select
+                value={sortOrder}
+                onChange={(e) => { setSortOrder(e.target.value); setPage(1); }}
+                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              >
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+              </select>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+            <div style={{
+              width: '100%',
+              maxWidth: '520px',
+              borderRadius: '16px',
+              border: '1px solid var(--border)',
+              background: 'var(--card-bg)',
+              padding: '18px 20px',
+              boxShadow: 'var(--shadow-sm)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ fontWeight: 700, fontSize: '16px' }}>🎯 Provocări active</div>
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
+                  background: 'var(--topbar-bg)',
+                  padding: '4px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border)'
+                }}>
+                  <button
+                    onClick={() => setChallengeTab('daily')}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: challengeTab === 'daily' ? 'var(--accent)' : 'transparent',
+                      color: challengeTab === 'daily' ? 'white' : 'var(--muted)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Daily
+                  </button>
+                  <button
+                    onClick={() => setChallengeTab('weekly')}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: challengeTab === 'weekly' ? 'var(--accent)' : 'transparent',
+                      color: challengeTab === 'weekly' ? 'white' : 'var(--muted)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Weekly
+                  </button>
+                </div>
+              </div>
+
+              {challengesLoading ? (
+                <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Se încarcă provocările...</div>
+              ) : challengesError ? (
+                <div style={{ color: 'var(--error)', fontSize: '13px' }}>{challengesError}</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {(challengeTab === 'daily' ? challenges.Daily : challenges.Weekly).map((challenge) => {
+                    const isAccepted = challenge.IsAccepted || false;
+                    const isCompleted = challenge.IsCompleted || false;
+                    const progress = challenge.Progress || 0;
+                    const target = challenge.Target || 1;
+                    const progressPercent = isAccepted ? Math.min((progress / target) * 100, 100) : 0;
+
+                    return (
+                      <div key={challenge.Id} style={{
+                        borderRadius: '12px',
+                        border: `1px solid ${isCompleted ? '#22c55e' : isAccepted ? 'var(--accent)' : 'var(--border)'}`,
+                        padding: '10px 12px',
+                        background: isCompleted ? 'rgba(34, 197, 94, 0.08)' : isAccepted ? 'rgba(var(--accent-rgb), 0.05)' : 'var(--bg-secondary)',
+                        cursor: isAccepted ? 'default' : 'pointer',
+                        transition: 'all 0.2s',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        opacity: isCompleted ? 0.7 : 1
+                      }}
+                      onClick={() => !isAccepted && handleAcceptChallenge(challenge.Id)}
+                      onMouseEnter={(e) => !isAccepted && (e.currentTarget.style.borderColor = 'var(--accent)')}
+                      onMouseLeave={(e) => !isAccepted && (e.currentTarget.style.borderColor = 'var(--border)')}
+                      >
+                        {isAccepted && !isCompleted && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            height: '3px',
+                            width: `${progressPercent}%`,
+                            background: 'var(--accent)',
+                            transition: 'width 0.3s'
+                          }} />
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {challenge.Title}
+                            {isCompleted && <span style={{ fontSize: '16px' }}>✅</span>}
+                            {isAccepted && !isCompleted && <span style={{ fontSize: '16px' }}>⏳</span>}
+                          </div>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent)' }}>+{challenge.RewardXp} XP</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
+                          {challenge.Description}
+                          {isAccepted && (
+                            <span style={{ marginLeft: '8px', fontWeight: 600, color: 'var(--accent)' }}>
+                              ({progress}/{target})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(challengeTab === 'daily' ? challenges.Daily : challenges.Weekly).length === 0 && (
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Nu există provocări disponibile.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
         {error && (
           <div style={{ 
@@ -425,6 +697,52 @@ export default function Leaderboard() {
                     );
                   })
                 )}
+              </div>
+            </div>
+
+            {/* PAGINATION */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--topbar-bg)'
+            }}>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                Pagina {page} din {totalPages} • {totalItems} utilizatori
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: page <= 1 ? 'var(--bg)' : 'var(--card-bg)',
+                    color: 'var(--text)',
+                    fontWeight: '600',
+                    cursor: page <= 1 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  ◀ Anterior
+                </button>
+                <button
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page >= totalPages}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: page >= totalPages ? 'var(--bg)' : 'var(--card-bg)',
+                    color: 'var(--text)',
+                    fontWeight: '600',
+                    cursor: page >= totalPages ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Următor ▶
+                </button>
               </div>
             </div>
           </>

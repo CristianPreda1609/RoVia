@@ -51,7 +51,6 @@ function Layout({ children }) {
 
                 {/* top header: fixed position, NOT moved by sidebar */}
                 <header className="topbar" style={{
-                    position: 'fixed',
                     left: 64, // fixed so header doesn't shift when sidebar opens
                     right: 0,
                     top: 0,
@@ -61,7 +60,7 @@ function Layout({ children }) {
                     justifyContent: 'space-between',
                     padding: '0 16px',
                     zIndex: 55,
-                    transition: 'none'
+                    overflow: 'hidden'
                 }}>
                     <div style={{ width: 36 }} /> {/* left spacer */}
                     <div style={{ fontWeight: 600, color: 'var(--text)' }}>RoVia</div>

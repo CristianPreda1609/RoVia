@@ -429,7 +429,7 @@ export default function PromoterPortal() {
 
   // FULL PROMOTER PORTAL
   return (
-    <div style={{
+    <div className="page-container" style={{
       minHeight: 'calc(100vh - 56px)',
       background: 'var(--bg)',
       paddingLeft: '80px',

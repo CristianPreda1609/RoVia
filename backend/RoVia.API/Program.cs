@@ -8,6 +8,9 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
@@ -39,6 +42,10 @@ builder.Services.AddScoped<ProfileService>();
 builder.Services.AddScoped<VoucherService>();
 builder.Services.AddScoped<PromoterWorkflowService>();
 builder.Services.AddScoped<AdminWorkflowService>();
+builder.Services.AddScoped<ChallengeService>();
+builder.Services.AddScoped<ChallengeProgressService>();
+builder.Services.AddHttpClient<GeminiClient>();
+builder.Services.AddHostedService<ChallengeScheduler>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RoVia.API.Data;
 
@@ -11,9 +12,11 @@ using RoVia.API.Data;
 namespace RoVia.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260202232417_AddChallengeTypeAndUserChallenges")]
+    partial class AddChallengeTypeAndUserChallenges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -261,39 +264,6 @@ namespace RoVia.API.Migrations
                     b.ToTable("Challenges");
                 });
 
-            modelBuilder.Entity("RoVia.API.Models.Friendship", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AddresseeId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RequesterId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AddresseeId");
-
-                    b.HasIndex("RequesterId", "AddresseeId")
-                        .IsUnique();
-
-                    b.ToTable("Friendships");
-                });
-
             modelBuilder.Entity("RoVia.API.Models.LeaderboardArchive", b =>
                 {
                     b.Property<int>("Id")
@@ -532,32 +502,6 @@ namespace RoVia.API.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("RoVia.API.Models.UserAttractionVisit", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttractionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("VisitedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttractionId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserAttractionVisits");
-                });
-
             modelBuilder.Entity("RoVia.API.Models.UserBadge", b =>
                 {
                     b.Property<int>("Id")
@@ -626,32 +570,6 @@ namespace RoVia.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserChallenges");
-                });
-
-            modelBuilder.Entity("RoVia.API.Models.UserFavorite", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttractionId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("SavedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttractionId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserFavorites");
                 });
 
             modelBuilder.Entity("RoVia.API.Models.UserProgress", b =>
@@ -835,25 +753,6 @@ namespace RoVia.API.Migrations
                     b.Navigation("ReviewedBy");
                 });
 
-            modelBuilder.Entity("RoVia.API.Models.Friendship", b =>
-                {
-                    b.HasOne("RoVia.API.Models.User", "Addressee")
-                        .WithMany("FriendRequestsReceived")
-                        .HasForeignKey("AddresseeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("RoVia.API.Models.User", "Requester")
-                        .WithMany("FriendRequestsSent")
-                        .HasForeignKey("RequesterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Addressee");
-
-                    b.Navigation("Requester");
-                });
-
             modelBuilder.Entity("RoVia.API.Models.LeaderboardArchive", b =>
                 {
                     b.HasOne("RoVia.API.Models.User", "User")
@@ -923,25 +822,6 @@ namespace RoVia.API.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("RoVia.API.Models.UserAttractionVisit", b =>
-                {
-                    b.HasOne("RoVia.API.Models.Attraction", "Attraction")
-                        .WithMany()
-                        .HasForeignKey("AttractionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RoVia.API.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attraction");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("RoVia.API.Models.UserBadge", b =>
                 {
                     b.HasOne("RoVia.API.Models.Badge", "Badge")
@@ -976,25 +856,6 @@ namespace RoVia.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Challenge");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("RoVia.API.Models.UserFavorite", b =>
-                {
-                    b.HasOne("RoVia.API.Models.Attraction", "Attraction")
-                        .WithMany()
-                        .HasForeignKey("AttractionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RoVia.API.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attraction");
 
                     b.Navigation("User");
                 });
@@ -1067,10 +928,6 @@ namespace RoVia.API.Migrations
                     b.Navigation("AttractionSuggestions");
 
                     b.Navigation("CreatedAttractions");
-
-                    b.Navigation("FriendRequestsReceived");
-
-                    b.Navigation("FriendRequestsSent");
 
                     b.Navigation("LeaderboardArchives");
 

@@ -22,6 +22,11 @@ public class AppDbContext : DbContext
     public DbSet<LeaderboardArchive> LeaderboardArchives { get; set; }
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<UserVoucher> UserVouchers { get; set; }
+    public DbSet<Challenge> Challenges { get; set; }
+    public DbSet<UserChallenge> UserChallenges { get; set; }
+    public DbSet<UserFavorite> UserFavorites { get; set; }
+    public DbSet<UserAttractionVisit> UserAttractionVisits { get; set; }
+    public DbSet<Friendship> Friendships { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -137,5 +142,21 @@ public class AppDbContext : DbContext
             .WithMany(v => v.UserVouchers)
             .HasForeignKey(uv => uv.VoucherId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Friendship>()
+            .HasOne(f => f.Requester)
+            .WithMany(u => u.FriendRequestsSent)
+            .HasForeignKey(f => f.RequesterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Friendship>()
+            .HasOne(f => f.Addressee)
+            .WithMany(u => u.FriendRequestsReceived)
+            .HasForeignKey(f => f.AddresseeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Friendship>()
+            .HasIndex(f => new { f.RequesterId, f.AddresseeId })
+            .IsUnique();
     }
 }
