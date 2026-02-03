@@ -56,6 +56,28 @@ public class ProfileService
             .ToListAsync();
 
         var levelInfo = CalculateLevel(user.TotalPoints);
+        var activityStats = await _context.UserActivityStats
+            .FirstOrDefaultAsync(s => s.UserId == userId) ?? new UserActivityStats { UserId = userId };
+        var roleName = user.Role?.Name ?? "User";
+        var activityPoints = 0;
+
+        if (roleName == "Promoter")
+        {
+            activityPoints += activityStats.AttractionsCreated * 60;
+            activityPoints += activityStats.AttractionsUpdated * 25;
+            activityPoints += activityStats.QuizzesCreated * 45;
+            activityPoints += activityStats.QuizzesUpdated * 20;
+            activityPoints += activityStats.SuggestionsSubmitted * 10;
+            activityPoints += activityStats.SuggestionsApproved * 20;
+        }
+        else if (roleName == "Administrator")
+        {
+            activityPoints += activityStats.AttractionsCreated * 35;
+            activityPoints += activityStats.AttractionsUpdated * 15;
+            activityPoints += activityStats.QuizzesCreated * 25;
+            activityPoints += activityStats.QuizzesUpdated * 10;
+            activityPoints += activityStats.SuggestionsApproved * 10;
+        }
         var nextBadgeInfo = nextBadge == null ? null : new
         {
             nextBadge.Id,
@@ -73,12 +95,22 @@ public class ProfileService
             user.Email,
             user.TotalPoints,
             user.MonthlyPoints,
+            ActivityPoints = activityPoints,
             Role = user.Role?.Name ?? "User",
             Level = levelInfo.Level,
             LevelName = levelInfo.Name,
             LevelProgress = levelInfo.Progress,
             PointsToNextLevel = levelInfo.PointsToNextLevel,
             QuizzesCompleted = quizzesCompleted,
+            ActivityStats = new
+            {
+                activityStats.AttractionsCreated,
+                activityStats.AttractionsUpdated,
+                activityStats.QuizzesCreated,
+                activityStats.QuizzesUpdated,
+                activityStats.SuggestionsSubmitted,
+                activityStats.SuggestionsApproved
+            },
             Badges = badges.Select(b => new
             {
                 b.Badge.Id,
@@ -134,10 +166,39 @@ public class ProfileService
         return true;
     }
 
+    public async Task<string?> GetInviteCodeAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return null;
+
+        // Dacă user-ul nu are cod, generează unul
+        if (string.IsNullOrWhiteSpace(user.InviteCode))
+        {
+            user.InviteCode = GenerateInviteCode();
+            await _context.SaveChangesAsync();
+        }
+
+        return user.InviteCode;
+    }
+
+    private static string GenerateInviteCode()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var random = new Random();
+        return new string(Enumerable.Range(0, 8)
+            .Select(_ => chars[random.Next(chars.Length)])
+            .ToArray());
+    }
+
     public async Task CheckAndUnlockBadgesAsync(int userId)
     {
         var user = await _context.Users.FindAsync(userId);
         var allBadges = await _context.Badges.ToListAsync();
+        var userRole = await _context.Roles.FirstOrDefaultAsync(r => r.Id == user.RoleId);
+        var isPromoter = userRole?.Name == "Promoter";
+        var isAdmin = userRole?.Name == "Administrator";
+        var activityStats = await _context.UserActivityStats
+            .FirstOrDefaultAsync(s => s.UserId == userId) ?? new UserActivityStats { UserId = userId };
 
         foreach (var badge in allBadges)
         {
@@ -154,6 +215,15 @@ public class ProfileService
             var criteria = System.Text.Json.JsonDocument.Parse(badge.Criteria);
             bool shouldUnlock = true;
 
+            if (criteria.RootElement.TryGetProperty("type", out var typeProperty))
+            {
+                var typeValue = typeProperty.GetString();
+                if (typeValue == "promoter" && !isPromoter)
+                    shouldUnlock = false;
+                if (typeValue == "admin" && !isAdmin)
+                    shouldUnlock = false;
+            }
+
             if (criteria.RootElement.TryGetProperty("totalPoints", out var pointsReq))
             {
                 if (user.TotalPoints < pointsReq.GetInt32())
@@ -168,6 +238,107 @@ public class ProfileService
                 
                 if (completed < quizzesReq.GetInt32())
                     shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("approvedSuggestions", out var suggestionsReq))
+            {
+                if (!isPromoter)
+                {
+                    shouldUnlock = false;
+                }
+                else
+                {
+                    var approved = await _context.AttractionSuggestions
+                        .Where(s => s.PromoterId == userId && s.Status == Models.SuggestionStatus.Approved)
+                        .CountAsync();
+
+                    if (approved < suggestionsReq.GetInt32())
+                        shouldUnlock = false;
+                }
+            }
+
+            if (criteria.RootElement.TryGetProperty("attractionsCreated", out var attractionsCreatedReq))
+            {
+                if (activityStats.AttractionsCreated < attractionsCreatedReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("attractionsUpdated", out var attractionsUpdatedReq))
+            {
+                if (activityStats.AttractionsUpdated < attractionsUpdatedReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("quizzesCreated", out var quizzesCreatedReq))
+            {
+                if (activityStats.QuizzesCreated < quizzesCreatedReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("quizzesUpdated", out var quizzesUpdatedReq))
+            {
+                if (activityStats.QuizzesUpdated < quizzesUpdatedReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("attractionsVisited", out var attractionsReq))
+            {
+                var visited = await _context.UserAttractionVisits
+                    .Where(v => v.UserId == userId)
+                    .Select(v => v.AttractionId)
+                    .Distinct()
+                    .CountAsync();
+
+                if (visited < attractionsReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("favoritesSaved", out var favoritesReq))
+            {
+                var favorites = await _context.UserFavorites
+                    .Where(f => f.UserId == userId)
+                    .CountAsync();
+
+                if (favorites < favoritesReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("friendsAdded", out var friendsReq))
+            {
+                var friendsCount = await _context.Friendships
+                    .Where(f => (f.RequesterId == userId || f.AddresseeId == userId) &&
+                           f.Status == Models.FriendshipStatus.Accepted)
+                    .CountAsync();
+
+                if (friendsCount < friendsReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("friendsInvited", out var invitedReq))
+            {
+                var invitedCount = await _context.Users
+                    .Where(u => u.InvitedByUserId == userId)
+                    .CountAsync();
+
+                if (invitedCount < invitedReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("challengesCompleted", out var challengesReq))
+            {
+                var completedChallenges = await _context.UserChallenges
+                    .Where(uc => uc.UserId == userId && uc.IsCompleted)
+                    .CountAsync();
+
+                if (completedChallenges < challengesReq.GetInt32())
+                    shouldUnlock = false;
+            }
+
+            if (criteria.RootElement.TryGetProperty("topContributor", out var topContributorReq) &&
+                topContributorReq.GetBoolean())
+            {
+                // Placeholder: requires monthly leaderboard logic
+                shouldUnlock = false;
             }
 
             if (shouldUnlock)
@@ -673,6 +844,207 @@ public class ProfileService
             },
             Progress = Math.Round(progress, 3),
             PointsToNextLevel = Math.Max(0, nextLevelTarget - totalPoints)
+        };
+    }
+
+    public async Task<dynamic> GetBadgeProgressAsync(int userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return null;
+
+        // Ensure eligible badges are unlocked before computing progress
+        await CheckAndUnlockBadgesAsync(userId);
+
+        // Get all badges
+        var allBadges = await _context.Badges.ToListAsync();
+        
+        // Get user's role info
+        var userRole = await _context.Roles
+            .FirstOrDefaultAsync(r => r.Id == user.RoleId);
+        bool isPromoter = userRole?.Name == "Promoter";
+        bool isAdmin = userRole?.Name == "Administrator";
+        var activityStats = await _context.UserActivityStats
+            .FirstOrDefaultAsync(s => s.UserId == userId) ?? new UserActivityStats { UserId = userId };
+        
+        // Get user's unlocked badges
+        var unlockedBadges = await _context.UserBadges
+            .Where(ub => ub.UserId == userId)
+            .Select(ub => ub.BadgeId)
+            .ToListAsync();
+
+        var quizzesCompleted = await _context.UserProgresses
+            .Where(up => up.UserId == userId && up.IsCompleted)
+            .CountAsync();
+
+        var badgeProgress = new List<dynamic>();
+
+        foreach (var badge in allBadges)
+        {
+            var isUnlocked = unlockedBadges.Contains(badge.Id);
+            
+            try
+            {
+                var options = System.Text.Json.JsonSerializerOptions.Default;
+                var criteria = System.Text.Json.JsonDocument.Parse(badge.Criteria);
+                
+                // Skip promoter badges if user is not a promoter
+                if (criteria.RootElement.TryGetProperty("type", out var typeProperty))
+                {
+                    var typeValue = typeProperty.GetString();
+                    if (typeValue == "promoter" && !isPromoter)
+                        continue;
+                    if (typeValue == "admin" && !isAdmin)
+                        continue;
+                }
+                
+                int currentProgress = 0;
+                int requiredProgress = 0;
+                string progressLabel = "";
+
+                // Handle points requirement
+                if (criteria.RootElement.TryGetProperty("totalPoints", out var pointsReq))
+                {
+                    requiredProgress = pointsReq.GetInt32();
+                    currentProgress = user.TotalPoints;
+                    progressLabel = "puncte";
+                }
+                // Handle quizzes requirement
+                else if (criteria.RootElement.TryGetProperty("quizzesCompleted", out var quizzesReq))
+                {
+                    requiredProgress = quizzesReq.GetInt32();
+                    currentProgress = quizzesCompleted;
+                    progressLabel = "quiz-uri";
+                }
+                // Handle promoter approved suggestions
+                else if (criteria.RootElement.TryGetProperty("approvedSuggestions", out var suggestionsReq))
+                {
+                    requiredProgress = suggestionsReq.GetInt32();
+                    
+                    if (isPromoter)
+                    {
+                        currentProgress = await _context.AttractionSuggestions
+                            .Where(s => s.PromoterId == userId && 
+                                   s.Status == Models.SuggestionStatus.Approved)
+                            .CountAsync();
+                    }
+                    progressLabel = "sugestii aprobate";
+                }
+                else if (criteria.RootElement.TryGetProperty("attractionsCreated", out var attractionsCreatedReq))
+                {
+                    requiredProgress = attractionsCreatedReq.GetInt32();
+                    currentProgress = activityStats.AttractionsCreated;
+                    progressLabel = "atracții adăugate";
+                }
+                else if (criteria.RootElement.TryGetProperty("attractionsUpdated", out var attractionsUpdatedReq))
+                {
+                    requiredProgress = attractionsUpdatedReq.GetInt32();
+                    currentProgress = activityStats.AttractionsUpdated;
+                    progressLabel = "atracții actualizate";
+                }
+                else if (criteria.RootElement.TryGetProperty("quizzesCreated", out var quizzesCreatedReq))
+                {
+                    requiredProgress = quizzesCreatedReq.GetInt32();
+                    currentProgress = activityStats.QuizzesCreated;
+                    progressLabel = "quiz-uri create";
+                }
+                else if (criteria.RootElement.TryGetProperty("quizzesUpdated", out var quizzesUpdatedReq))
+                {
+                    requiredProgress = quizzesUpdatedReq.GetInt32();
+                    currentProgress = activityStats.QuizzesUpdated;
+                    progressLabel = "quiz-uri editate";
+                }
+                // Handle top contributor (monthly) placeholder
+                else if (criteria.RootElement.TryGetProperty("topContributor", out var topContributorReq) &&
+                         topContributorReq.GetBoolean())
+                {
+                    // Not implemented yet; prevent 0 remaining for locked badge
+                    requiredProgress = 1;
+                    currentProgress = 0;
+                    progressLabel = "lună";
+                }
+                // Handle attractions visited
+                else if (criteria.RootElement.TryGetProperty("attractionsVisited", out var attractionsReq))
+                {
+                    requiredProgress = attractionsReq.GetInt32();
+                    currentProgress = await _context.UserAttractionVisits
+                        .Where(v => v.UserId == userId)
+                        .Select(v => v.AttractionId)
+                        .Distinct()
+                        .CountAsync();
+                    progressLabel = "locuri vizitate";
+                }
+                // Handle favorites saved
+                else if (criteria.RootElement.TryGetProperty("favoritesSaved", out var favoritesReq))
+                {
+                    requiredProgress = favoritesReq.GetInt32();
+                    currentProgress = await _context.UserFavorites
+                        .Where(f => f.UserId == userId)
+                        .CountAsync();
+                    progressLabel = "favorite salvate";
+                }
+                // Handle friends added
+                else if (criteria.RootElement.TryGetProperty("friendsAdded", out var friendsReq))
+                {
+                    requiredProgress = friendsReq.GetInt32();
+                    currentProgress = await _context.Friendships
+                        .Where(f => (f.RequesterId == userId || f.AddresseeId == userId) && 
+                               f.Status == Models.FriendshipStatus.Accepted)
+                        .CountAsync();
+                    progressLabel = "prieteni";
+                }
+                // Handle friends invited
+                else if (criteria.RootElement.TryGetProperty("friendsInvited", out var invitedReq))
+                {
+                    requiredProgress = invitedReq.GetInt32();
+                    // Count unique users invited via invite code
+                    currentProgress = await _context.Users
+                        .Where(u => u.InvitedByUserId == userId)
+                        .CountAsync();
+                    progressLabel = "prieteni invitați";
+                }
+                // Handle challenges completed
+                else if (criteria.RootElement.TryGetProperty("challengesCompleted", out var challengesReq))
+                {
+                    requiredProgress = challengesReq.GetInt32();
+                    currentProgress = await _context.UserChallenges
+                        .Where(uc => uc.UserId == userId && uc.IsCompleted)
+                        .CountAsync();
+                    progressLabel = "provocări";
+                }
+
+                double percentage = requiredProgress > 0 
+                    ? Math.Min(100, Math.Round((double)currentProgress / requiredProgress * 100, 1))
+                    : 0;
+
+                badgeProgress.Add(new
+                {
+                    badge.Id,
+                    badge.Name,
+                    badge.Description,
+                    badge.IconUrl,
+                    IsUnlocked = isUnlocked,
+                    CurrentProgress = currentProgress,
+                    RequiredProgress = requiredProgress,
+                    Percentage = percentage,
+                    ProgressLabel = progressLabel,
+                    RemainingToUnlock = Math.Max(0, requiredProgress - currentProgress)
+                });
+            }
+            catch
+            {
+                // Skip badges with invalid criteria
+            }
+        }
+
+        return new
+        {
+            UserId = userId,
+            Username = user.Username,
+            TotalPoints = user.TotalPoints,
+            QuizzesCompleted = quizzesCompleted,
+            TotalBadges = badgeProgress.Count,
+            UnlockedCount = unlockedBadges.Count(ubId => badgeProgress.Select(b => (int)b.Id).Contains(ubId)),
+            Badges = badgeProgress
         };
     }
 

@@ -30,6 +30,18 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpGet("me/invite-code")]
+    public async Task<IActionResult> GetMyInviteCode()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        if (userId == 0) return Unauthorized();
+
+        var code = await _profileService.GetInviteCodeAsync(userId);
+        if (code == null) return NotFound();
+
+        return Ok(new { inviteCode = code });
+    }
+
     [HttpPut("me")]
     public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateProfileRequest request)
     {
@@ -126,6 +138,43 @@ public class ProfileController : ControllerBase
         if (entry == null) return NotFound();
 
         return Ok(entry);
+    }
+
+    [HttpGet("me/badge-progress")]
+    public async Task<IActionResult> GetMyBadgeProgress()
+    {
+        try
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (userId == 0) return Unauthorized();
+
+            var progress = await _profileService.GetBadgeProgressAsync(userId);
+            if (progress == null) return NotFound();
+
+            return Ok(progress);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Badge progress error: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{userId}/badges")]
+    public async Task<IActionResult> GetUserBadgeProgress(int userId)
+    {
+        try
+        {
+            var progress = await _profileService.GetBadgeProgressAsync(userId);
+            if (progress == null) return NotFound();
+
+            return Ok(progress);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Badge progress error: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [Authorize(Roles = "Administrator")]

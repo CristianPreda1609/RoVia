@@ -52,16 +52,22 @@ public class ChallengeProgressService
         {
             var today = DateTime.UtcNow.Date;
             
-            // Obține toate regiunile vizitate astăzi
-            var visitedRegionsToday = await _context.UserAttractionVisits
-                .Where(v => v.UserId == userId && v.VisitedAt >= today)
+            // Get active daily challenge
+            var dailyChallenge = await _context.Challenges
+                .Where(c => c.Kind == ChallengeKind.Daily && c.StartDate == today)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync();
+            
+            // Obține toate regiunile vizitate pentru challenge-ul curent
+            var visitedRegionsForChallenge = await _context.UserAttractionVisits
+                .Where(v => v.UserId == userId && v.DailyChallengeId == dailyChallenge)
                 .Include(v => v.Attraction)
                 .Select(v => v.Attraction.Region)
                 .Distinct()
                 .ToListAsync();
 
-            // Dacă această regiune NU a fost vizitată astăzi, incrementează ExploreRegions
-            if (!visitedRegionsToday.Contains(attraction.Region))
+            // Dacă această regiune NU a fost vizitată pentru challenge-ul curent, incrementează ExploreRegions
+            if (!visitedRegionsForChallenge.Contains(attraction.Region))
             {
                 await IncrementProgressAsync(userId, ChallengeType.ExploreRegions);
             }

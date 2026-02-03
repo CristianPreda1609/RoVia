@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import Button from '../components/Button';
 import { spacing } from '../constants/layout';
 
 function Register() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -15,6 +16,14 @@ function Register() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [inviteCode, setInviteCode] = useState('');
+
+    useEffect(() => {
+        const code = searchParams.get('invite');
+        if (code) {
+            setInviteCode(code);
+        }
+    }, [searchParams]);
 
     const handleChange = (e) => {
         setFormData({
@@ -41,11 +50,17 @@ function Register() {
         setLoading(true);
 
         try {
-            await api.post('/auth/register', {
+            const payload = {
                 Username: formData.username,
                 Email: formData.email,
                 Password: formData.password
-            });
+            };
+
+            if (inviteCode) {
+                payload.InviteCode = inviteCode;
+            }
+
+            await api.post('/auth/register', payload);
             setSuccess('Cont creat cu succes! Te redirecționăm la login...');
 
             setTimeout(() => {

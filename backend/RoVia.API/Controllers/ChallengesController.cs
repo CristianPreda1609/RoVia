@@ -11,10 +11,12 @@ namespace RoVia.API.Controllers;
 public class ChallengesController : ControllerBase
 {
     private readonly ChallengeService _service;
+    private readonly ChallengeProgressService _progressService;
 
-    public ChallengesController(ChallengeService service)
+    public ChallengesController(ChallengeService service, ChallengeProgressService progressService)
     {
         _service = service;
+        _progressService = progressService;
     }
 
     [HttpGet("active")]
@@ -67,5 +69,16 @@ public class ChallengesController : ControllerBase
     {
         var challenges = await _service.GetUserChallengesAsync(userId);
         return Ok(challenges);
+    }
+
+    [HttpPost("track-invite")]
+    [Authorize]
+    public async Task<IActionResult> TrackInviteChallenge()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        if (userId == 0) return Unauthorized();
+
+        await _progressService.TrackFriendInviteAsync(userId);
+        return Ok(new { message = "Challenge tracked successfully" });
     }
 }

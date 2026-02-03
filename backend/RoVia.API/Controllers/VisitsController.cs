@@ -29,21 +29,37 @@ public class VisitsController : ControllerBase
             return Unauthorized();
         }
 
-        // Verifică dacă a vizitat deja astăzi
+        // Get active challenge IDs
         var today = DateTime.UtcNow.Date;
+        var weekStart = GetWeekStart(today);
+        
+        var dailyChallenge = await _context.Challenges
+            .Where(c => c.Kind == ChallengeKind.Daily && c.StartDate == today)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync();
+            
+        var weeklyChallenge = await _context.Challenges
+            .Where(c => c.Kind == ChallengeKind.Weekly && c.StartDate == weekStart)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync();
+
+        // Verifică dacă a vizitat deja pentru challenge-ul activ
         var alreadyVisited = await _context.UserAttractionVisits
-            .AnyAsync(v => v.UserId == userId && v.AttractionId == attractionId && v.VisitedAt >= today);
+            .AnyAsync(v => v.UserId == userId && v.AttractionId == attractionId && 
+                          (v.DailyChallengeId == dailyChallenge || v.WeeklyChallengeId == weeklyChallenge));
 
         if (alreadyVisited)
         {
-            return Ok(new { message = "Already tracked today" });
+            return Ok(new { message = "Already tracked for current challenge" });
         }
 
-        // Track visit
+        // Track visit linked to active challenges
         _context.UserAttractionVisits.Add(new UserAttractionVisit
         {
             UserId = userId,
-            AttractionId = attractionId
+            AttractionId = attractionId,
+            DailyChallengeId = dailyChallenge,
+            WeeklyChallengeId = weeklyChallenge
         });
         await _context.SaveChangesAsync();
 
@@ -51,6 +67,12 @@ public class VisitsController : ControllerBase
         await _challengeProgress.TrackAttractionVisitAsync(userId, attractionId);
 
         return Ok(new { message = "Visit tracked" });
+    }
+
+    private static DateTime GetWeekStart(DateTime date)
+    {
+        var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-1 * diff).Date;
     }
 
     [HttpGet("today")]
@@ -62,9 +84,16 @@ public class VisitsController : ControllerBase
             return Ok(new List<int>());
         }
 
+        // Get today's active daily challenge
         var today = DateTime.UtcNow.Date;
+        var dailyChallenge = await _context.Challenges
+            .Where(c => c.Kind == ChallengeKind.Daily && c.StartDate == today)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync();
+
+        // Only return visits for the current daily challenge
         var visits = await _context.UserAttractionVisits
-            .Where(v => v.UserId == userId && v.VisitedAt >= today)
+            .Where(v => v.UserId == userId && v.DailyChallengeId == dailyChallenge)
             .Select(v => v.AttractionId)
             .ToListAsync();
 

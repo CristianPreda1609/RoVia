@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RoVia.API.Data;
 using RoVia.API.Models;
+using RoVia.API.Services;
 using System.Security.Claims;
 
 namespace RoVia.API.Controllers;
@@ -11,10 +12,12 @@ namespace RoVia.API.Controllers;
 public class FriendsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ChallengeProgressService _challengeProgress;
 
-    public FriendsController(AppDbContext context)
+    public FriendsController(AppDbContext context, ChallengeProgressService challengeProgress)
     {
         _context = context;
+        _challengeProgress = challengeProgress;
     }
 
     [HttpPost("request/{targetUserId}")]
@@ -91,6 +94,9 @@ public class FriendsController : ControllerBase
         request.Status = FriendshipStatus.Accepted;
         request.RespondedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+
+        // Track challenge progress for InviteFriends (requester gets credit)
+        await _challengeProgress.TrackFriendInviteAsync(request.RequesterId);
 
         return Ok(new { message = "Cerere acceptată." });
     }

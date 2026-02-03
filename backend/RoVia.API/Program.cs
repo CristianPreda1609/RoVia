@@ -44,6 +44,7 @@ builder.Services.AddScoped<PromoterWorkflowService>();
 builder.Services.AddScoped<AdminWorkflowService>();
 builder.Services.AddScoped<ChallengeService>();
 builder.Services.AddScoped<ChallengeProgressService>();
+builder.Services.AddScoped<ActivityPointsService>();
 builder.Services.AddHttpClient<GeminiClient>();
 builder.Services.AddHostedService<ChallengeScheduler>();
 
@@ -69,6 +70,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var activityPoints = scope.ServiceProvider.GetRequiredService<ActivityPointsService>();
+    await activityPoints.BackfillActivityStatsAsync();
+}
 
 // Seed data
 using (var scope = app.Services.CreateScope())

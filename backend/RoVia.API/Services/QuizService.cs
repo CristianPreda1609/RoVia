@@ -9,11 +9,13 @@ public class QuizService
 {
     private readonly AppDbContext _context;
     private readonly ChallengeProgressService _challengeProgress;
+    private readonly ActivityPointsService _activityPoints;
 
-    public QuizService(AppDbContext context, ChallengeProgressService challengeProgress)
+    public QuizService(AppDbContext context, ChallengeProgressService challengeProgress, ActivityPointsService activityPoints)
     {
         _context = context;
         _challengeProgress = challengeProgress;
+        _activityPoints = activityPoints;
     }
 
     private static Question BuildQuestionEntity(QuizQuestionRequest request, int order)
@@ -169,7 +171,14 @@ public class QuizService
 
         if (!isAdmin && attraction.CreatedByUserId != userId)
         {
-            throw new InvalidOperationException("Poți adăuga quiz-uri doar pentru atracțiile tale.");
+            var activityStats = await _context.UserActivityStats
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+            var canCreateGlobalQuiz = activityStats?.AttractionsCreated >= 5;
+
+            if (!canCreateGlobalQuiz)
+            {
+                throw new InvalidOperationException("Poți adăuga quiz-uri doar pentru atracțiile tale.");
+            }
         }
 
         var quiz = new Quiz
@@ -194,6 +203,8 @@ public class QuizService
         _context.Quizzes.Add(quiz);
         await _context.SaveChangesAsync();
 
+        await _activityPoints.AwardActivityAsync(userId, isAdmin ? "Administrator" : "Promoter", ActivityAction.QuizCreated);
+
         return quiz;
     }
 
@@ -211,7 +222,14 @@ public class QuizService
 
         if (!isAdmin && quiz.CreatedByUserId != userId)
         {
-            throw new InvalidOperationException("Nu poți modifica acest quiz.");
+            var stats = await _context.UserActivityStats
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+            var canManageGlobalQuizzes = (stats?.AttractionsCreated ?? 0) >= 5;
+
+            if (!canManageGlobalQuizzes)
+            {
+                throw new InvalidOperationException("Nu poți modifica acest quiz.");
+            }
         }
 
         if (quiz.AttractionId != request.AttractionId)
@@ -247,6 +265,7 @@ public class QuizService
         }
 
         await _context.SaveChangesAsync();
+        await _activityPoints.AwardActivityAsync(userId, isAdmin ? "Administrator" : "Promoter", ActivityAction.QuizUpdated);
         return quiz;
     }
 
@@ -287,7 +306,14 @@ public class QuizService
 
         if (!isAdmin && quiz.CreatedByUserId != userId)
         {
-            throw new InvalidOperationException("Nu poți accesa acest quiz.");
+            var stats = await _context.UserActivityStats
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+            var canManageGlobalQuizzes = (stats?.AttractionsCreated ?? 0) >= 5;
+
+            if (!canManageGlobalQuizzes)
+            {
+                throw new InvalidOperationException("Nu poți accesa acest quiz.");
+            }
         }
 
         return quiz;

@@ -27,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<UserFavorite> UserFavorites { get; set; }
     public DbSet<UserAttractionVisit> UserAttractionVisits { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<UserActivityStats> UserActivityStats { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,6 +82,15 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(up => up.QuizId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<UserActivityStats>()
+            .HasKey(s => s.UserId);
+
+        modelBuilder.Entity<UserActivityStats>()
+            .HasOne(s => s.User)
+            .WithOne()
+            .HasForeignKey<UserActivityStats>(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Badges
         modelBuilder.Entity<UserBadge>()

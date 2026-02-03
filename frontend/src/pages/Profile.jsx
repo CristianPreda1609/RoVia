@@ -5,6 +5,7 @@ import api from '../services/api';
 export default function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [badgeProgress, setBadgeProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -17,6 +18,7 @@ export default function Profile() {
 
   useEffect(() => {
     fetchProfile();
+    fetchBadgeProgress();
     fetchFriends();
     fetchFriendRequests();
   }, []);
@@ -32,6 +34,17 @@ export default function Profile() {
       setError('Nu s-a putut încărca profilul.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBadgeProgress = async () => {
+    try {
+      console.log('🎖️ Fetching badge progress...');
+      const res = await api.get('/profile/me/badge-progress');
+      console.log('Badge progress data:', res.data);
+      setBadgeProgress(res.data);
+    } catch (err) {
+      console.error('❌ Error fetching badge progress:', err.response?.data || err.message);
     }
   };
 
@@ -472,6 +485,134 @@ export default function Profile() {
             </button>
           )}
         </div>
+
+        {/* BADGE PROGRESS SECTION */}
+        {badgeProgress && (
+          <div style={{
+            marginBottom: '32px',
+            marginTop: '32px'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '800',
+              marginBottom: '16px',
+              color: 'var(--text)'
+            }}>
+              🎖️ Badge-uri ({badgeProgress.UnlockedCount}/{badgeProgress.TotalBadges})
+            </h2>
+            <div style={{
+              display: 'grid',
+              gap: '16px'
+            }}>
+              {badgeProgress.Badges.map(badge => (
+                <div key={badge.Id} style={{
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  background: badge.IsUnlocked ? 'linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(56, 142, 60, 0.1))' : 'var(--card-bg)',
+                  opacity: badge.IsUnlocked ? 1 : 0.7,
+                  transition: 'all 0.3s ease'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        fontSize: '32px',
+                        opacity: badge.IsUnlocked ? 1 : 0.5
+                      }}>
+                        {badge.IconUrl}
+                      </div>
+                      <div>
+                        <div style={{
+                          fontWeight: '700',
+                          fontSize: '16px',
+                          color: badge.IsUnlocked ? 'var(--success)' : 'var(--text)'
+                        }}>
+                          {badge.Name}
+                        </div>
+                        <div style={{
+                          fontSize: '13px',
+                          color: 'var(--muted)',
+                          marginTop: '4px'
+                        }}>
+                          {badge.Description}
+                        </div>
+                      </div>
+                    </div>
+                    {badge.IsUnlocked && (
+                      <div style={{
+                        fontSize: '20px',
+                        fontWeight: '800',
+                        color: 'var(--success)'
+                      }}>
+                        ✓
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      fontWeight: '600'
+                    }}>
+                      {badge.CurrentProgress} / {badge.RequiredProgress} {badge.ProgressLabel}
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      color: badge.IsUnlocked ? 'var(--success)' : 'var(--accent)'
+                    }}>
+                      {badge.Percentage.toFixed(0)}%
+                    </div>
+                  </div>
+
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    borderRadius: '4px',
+                    background: 'var(--border)',
+                    overflow: 'hidden',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${badge.Percentage}%`,
+                      background: badge.IsUnlocked 
+                        ? 'linear-gradient(90deg, var(--success), #81c784)' 
+                        : 'linear-gradient(90deg, var(--accent), var(--secondary))',
+                      transition: 'width 0.3s ease',
+                      borderRadius: '4px'
+                    }}></div>
+                  </div>
+
+                  {!badge.IsUnlocked && badge.RemainingToUnlock > 0 && (
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      marginTop: '8px'
+                    }}>
+                      📌 Lipsă: {badge.RemainingToUnlock} {badge.ProgressLabel}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ACTIONS */}
         <div style={{ display: 'grid', gap: '12px' }}>

@@ -20,4 +20,8 @@ public class UserAttractionVisit
     public int AttractionId { get; set; }
     public Attraction Attraction { get; set; } = null!;
     public DateTime VisitedAt { get; set; } = DateTime.UtcNow;
+    
+    // Link to active challenge when visit was recorded
+    public int? DailyChallengeId { get; set; }
+    public int? WeeklyChallengeId { get; set; }
 }

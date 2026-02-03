@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using RoVia.API.Data;
 using RoVia.API.DTOs;
 using RoVia.API.Models;
+using RoVia.API.Services;
 using System.Security.Claims;
 
 namespace RoVia.API.Controllers;
@@ -13,10 +14,12 @@ namespace RoVia.API.Controllers;
 public class AttractionsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ActivityPointsService _activityPoints;
 
-    public AttractionsController(AppDbContext context)
+    public AttractionsController(AppDbContext context, ActivityPointsService activityPoints)
     {
         _context = context;
+        _activityPoints = activityPoints;
     }
 
     private int ResolveUserId()
@@ -61,6 +64,71 @@ public class AttractionsController : ControllerBase
             .ToListAsync();
 
         return Ok(attractions);
+    }
+
+    [HttpGet("recommendations")]
+    public async Task<ActionResult<IEnumerable<AttractionRecommendationDto>>> GetRecommendations([FromQuery] int take = 6)
+    {
+        var cappedTake = Math.Clamp(take, 1, 20);
+        var userId = ResolveUserId();
+
+        var isPromoter = false;
+        var hasOwnAttractions = false;
+        var isActivePromoter = false;
+
+        if (userId > 0)
+        {
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            isPromoter = user?.Role?.Name == "Promoter";
+            if (isPromoter)
+            {
+                hasOwnAttractions = await _context.Attractions
+                    .AnyAsync(a => a.IsApproved && a.CreatedByUserId == userId);
+
+                var stats = await _context.UserActivityStats
+                    .FirstOrDefaultAsync(s => s.UserId == userId);
+
+                if (stats != null)
+                {
+                    var totalActivity = stats.AttractionsCreated + stats.AttractionsUpdated + stats.QuizzesCreated + stats.QuizzesUpdated;
+                    isActivePromoter = totalActivity > 0;
+                }
+            }
+        }
+
+        var baseQuery = _context.Attractions
+            .Where(a => a.IsApproved)
+            .Select(a => new AttractionRecommendationDto
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Description = a.Description,
+                Region = a.Region,
+                ImageUrl = a.ImageUrl,
+                Rating = a.Rating,
+                TypeName = a.Type.ToString(),
+                CreatedAt = a.CreatedAt,
+                IsPromoterHighlight = isPromoter && isActivePromoter && a.CreatedByUserId == userId,
+                HighlightLabel = isPromoter && isActivePromoter && a.CreatedByUserId == userId ? "De la tine" : "Recomandare"
+            });
+
+        var recommendations = hasOwnAttractions
+            ? await baseQuery
+                .OrderByDescending(a => a.IsPromoterHighlight)
+                .ThenByDescending(a => a.Rating)
+                .ThenByDescending(a => a.CreatedAt)
+                .Take(cappedTake)
+                .ToListAsync()
+            : await baseQuery
+                .OrderByDescending(a => a.Rating)
+                .ThenByDescending(a => a.CreatedAt)
+                .Take(cappedTake)
+                .ToListAsync();
+
+        return Ok(recommendations);
     }
 
     [HttpGet("{id}")]
@@ -116,6 +184,7 @@ public class AttractionsController : ControllerBase
 
         _context.Attractions.Add(attraction);
         await _context.SaveChangesAsync();
+        await _activityPoints.AwardActivityAsync(ResolveUserId(), "Administrator", ActivityAction.AttractionCreated);
         return Ok(new { attraction.Id });
     }
 
@@ -146,6 +215,7 @@ public class AttractionsController : ControllerBase
         attraction.IsApproved = true;
 
         await _context.SaveChangesAsync();
+        await _activityPoints.AwardActivityAsync(ResolveUserId(), "Administrator", ActivityAction.AttractionUpdated);
         return NoContent();
     }
 

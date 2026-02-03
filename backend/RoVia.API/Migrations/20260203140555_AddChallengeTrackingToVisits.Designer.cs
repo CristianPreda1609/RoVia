@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RoVia.API.Data;
 
@@ -11,9 +12,11 @@ using RoVia.API.Data;
 namespace RoVia.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260203140555_AddChallengeTrackingToVisits")]
+    partial class AddChallengeTrackingToVisits
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -505,16 +508,6 @@ namespace RoVia.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("InviteCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("InvitedById")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("InvitedByUserId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("LastResetDate")
                         .HasColumnType("datetime2");
 
@@ -537,42 +530,9 @@ namespace RoVia.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InvitedById");
-
                     b.HasIndex("RoleId");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("RoVia.API.Models.UserActivityStats", b =>
-                {
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AttractionsCreated")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AttractionsUpdated")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("LastUpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("QuizzesCreated")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuizzesUpdated")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SuggestionsApproved")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SuggestionsSubmitted")
-                        .HasColumnType("int");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("UserActivityStats");
                 });
 
             modelBuilder.Entity("RoVia.API.Models.UserAttractionVisit", b =>
@@ -963,30 +923,13 @@ namespace RoVia.API.Migrations
 
             modelBuilder.Entity("RoVia.API.Models.User", b =>
                 {
-                    b.HasOne("RoVia.API.Models.User", "InvitedBy")
-                        .WithMany()
-                        .HasForeignKey("InvitedById");
-
                     b.HasOne("RoVia.API.Models.Role", "Role")
                         .WithMany("Users")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("InvitedBy");
-
                     b.Navigation("Role");
-                });
-
-            modelBuilder.Entity("RoVia.API.Models.UserActivityStats", b =>
-                {
-                    b.HasOne("RoVia.API.Models.User", "User")
-                        .WithOne()
-                        .HasForeignKey("RoVia.API.Models.UserActivityStats", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("RoVia.API.Models.UserAttractionVisit", b =>

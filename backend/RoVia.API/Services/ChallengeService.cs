@@ -277,21 +277,100 @@ public class ChallengeService
         return date.AddDays(-1 * diff).Date;
     }
 
-    private static List<ChallengeSeed> GetDailyFallback() => new()
+    // Pool mare de challenge-uri Daily - cicleaza aleatoriu
+    private static readonly List<ChallengeSeed> DailyChallengePool = new()
     {
-        new ChallengeSeed("Explorator rapid", "Vizitează 2 atracții în aceeași regiune.", 25, "VisitAttractions", 2),
+        // VisitAttractions - baza
+        new ChallengeSeed("Explorator rapid", "Vizitează 2 atracții astăzi.", 25, "VisitAttractions", 2),
+        new ChallengeSeed("Descoperitor urban", "Vizitează 3 atracții în orașe diferite.", 30, "VisitAttractions", 3),
+        new ChallengeSeed("Aventură locală", "Explorează 1 atracție nouă.", 20, "VisitAttractions", 1),
+        new ChallengeSeed("Turist activ", "Vizitează 4 locuri istorice.", 35, "VisitAttractions", 4),
+        new ChallengeSeed("Pasionat de istorie", "Descoperă 2 situri istorice.", 25, "VisitAttractions", 2),
+        
+        // CompleteQuiz
         new ChallengeSeed("Mini-quiz", "Finalizează 1 quiz despre România.", 20, "CompleteQuiz", 1),
-        new ChallengeSeed("Pasiune locală", "Salvează 1 atracție la favorite.", 15, "SaveFavorites", 1)
+        new ChallengeSeed("Expert cultura", "Completează 2 quiz-uri culturale.", 30, "CompleteQuiz", 2),
+        new ChallengeSeed("Învățător rapid", "Termină 1 quiz cu punctaj perfect.", 25, "CompleteQuiz", 1),
+        new ChallengeSeed("Cunoaștere locală", "Rezolvă 1 quiz despre atracții.", 20, "CompleteQuiz", 1),
+        
+        // ExploreRegions
+        new ChallengeSeed("Călător regional", "Explorează 2 județe diferite.", 30, "ExploreRegions", 2),
+        new ChallengeSeed("Tur de țară", "Descoperă 1 regiune nouă.", 25, "ExploreRegions", 1),
+        new ChallengeSeed("Aventurier român", "Vizitează atracții din 3 regiuni.", 35, "ExploreRegions", 3),
+        
+        // SaveFavorites
+        new ChallengeSeed("Colecționar", "Salvează 2 atracții la favorite.", 20, "SaveFavorites", 2),
+        new ChallengeSeed("Pasiune locală", "Adaugă 1 loc preferat.", 15, "SaveFavorites", 1),
+        new ChallengeSeed("Liste de călătorii", "Salvează 3 destinații.", 25, "SaveFavorites", 3),
+        
+        // EarnBadges
+        new ChallengeSeed("Vânător de insigne", "Deblochează 1 insignă nouă.", 30, "EarnBadges", 1),
+        new ChallengeSeed("Realizări rapide", "Obține 1 achievement.", 25, "EarnBadges", 1),
+        
+        // InviteFriends
+        new ChallengeSeed("Partener de călătorie", "Invită 1 prieten să exploreze.", 35, "InviteFriends", 1),
+        new ChallengeSeed("Ambasador RoVia", "Trimite 1 invitație.", 30, "InviteFriends", 1)
     };
 
-    private static List<ChallengeSeed> GetWeeklyFallback() => new()
+    // Pool mare de challenge-uri Weekly - mai grele
+    private static readonly List<ChallengeSeed> WeeklyChallengePool = new()
     {
-        new ChallengeSeed("Săptămâna exploratorului", "Vizitează 5 atracții diferite.", 80, "VisitAttractions", 5),
-        new ChallengeSeed("Cultura românească", "Finalizează 3 quiz-uri culturale.", 70, "CompleteQuiz", 3),
-        new ChallengeSeed("Tur regional", "Explorează 3 regiuni turistice.", 90, "ExploreRegions", 3),
-        new ChallengeSeed("Colecționar", "Adună 2 insigne noi.", 60, "EarnBadges", 2),
-        new ChallengeSeed("Prietenii călători", "Invită 1 prieten.", 50, "InviteFriends", 1)
+        // VisitAttractions - weekly
+        new ChallengeSeed("Săptămâna exploratorului", "Vizitează 10 atracții diferite.", 100, "VisitAttractions", 10),
+        new ChallengeSeed("Maratonul turistic", "Descoperă 15 locuri noi.", 120, "VisitAttractions", 15),
+        new ChallengeSeed("Colecționarul de monumente", "Explorează 8 situri istorice.", 90, "VisitAttractions", 8),
+        new ChallengeSeed("Aventură națională", "Vizitează 12 atracții în 7 zile.", 110, "VisitAttractions", 12),
+        new ChallengeSeed("Descoperitor de castele", "Vizitează 5 castele sau cetăți.", 85, "VisitAttractions", 5),
+        new ChallengeSeed("Turist religios", "Explorează 6 mănăstiri sau biserici.", 80, "VisitAttractions", 6),
+        
+        // CompleteQuiz - weekly
+        new ChallengeSeed("Cultura românească", "Finalizează 5 quiz-uri culturale.", 80, "CompleteQuiz", 5),
+        new ChallengeSeed("Expertul României", "Completează 7 quiz-uri despre țară.", 95, "CompleteQuiz", 7),
+        new ChallengeSeed("Învățare intensivă", "Termină 10 quiz-uri.", 110, "CompleteQuiz", 10),
+        new ChallengeSeed("Profesor de geografie", "Rezolvă 6 quiz-uri despre regiuni.", 85, "CompleteQuiz", 6),
+        new ChallengeSeed("Istoric amator", "Completează 4 quiz-uri despre istorie.", 70, "CompleteQuiz", 4),
+        
+        // ExploreRegions - weekly
+        new ChallengeSeed("Tur regional", "Explorează 5 județe diferite.", 100, "ExploreRegions", 5),
+        new ChallengeSeed("Călătorul României", "Descoperă 7 regiuni noi.", 115, "ExploreRegions", 7),
+        new ChallengeSeed("De la munte la mare", "Vizitează 6 zone geografice.", 95, "ExploreRegions", 6),
+        new ChallengeSeed("Harta României", "Explorează 8 județe.", 105, "ExploreRegions", 8),
+        
+        // SaveFavorites - weekly
+        new ChallengeSeed("Lista dorințelor", "Salvează 8 atracții la favorite.", 65, "SaveFavorites", 8),
+        new ChallengeSeed("Planificator de călătorii", "Adaugă 10 destinații preferate.", 75, "SaveFavorites", 10),
+        new ChallengeSeed("Colecție personală", "Salvează 12 locuri interesante.", 80, "SaveFavorites", 12),
+        
+        // EarnBadges - weekly
+        new ChallengeSeed("Colecționarul", "Deblochează 3 insigne noi.", 90, "EarnBadges", 3),
+        new ChallengeSeed("Maestrul realizărilor", "Obține 4 achievement-uri.", 100, "EarnBadges", 4),
+        new ChallengeSeed("Vânător de trofee", "Câștigă 2 insigne săptămâna aceasta.", 80, "EarnBadges", 2),
+        
+        // InviteFriends - weekly
+        new ChallengeSeed("Comunitate activă", "Invită 3 prieteni să exploreze.", 85, "InviteFriends", 3),
+        new ChallengeSeed("Lider social", "Trimite 2 invitații.", 70, "InviteFriends", 2),
+        new ChallengeSeed("Ambasador regional", "Convinge 1 prieten să se alăture.", 60, "InviteFriends", 1)
     };
+
+    private static List<ChallengeSeed> GetDailyFallback()
+    {
+        // Selectează 3 challenge-uri random din pool
+        var random = new Random();
+        return DailyChallengePool
+            .OrderBy(x => random.Next())
+            .Take(3)
+            .ToList();
+    }
+
+    private static List<ChallengeSeed> GetWeeklyFallback()
+    {
+        // Selectează 5 challenge-uri random din pool
+        var random = new Random();
+        return WeeklyChallengePool
+            .OrderBy(x => random.Next())
+            .Take(5)
+            .ToList();
+    }
 
     private record ChallengeSeed(string Title, string Description, int RewardXp, string? Type, int Target);
 

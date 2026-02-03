@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RoVia.API.Services;
+using RoVia.API.Data;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
@@ -16,11 +18,13 @@ public class QuizController : ControllerBase
     private const int QuestionsPerAttempt = 3;
     private readonly QuizService _quizService;
     private readonly ProfileService _profileService;
+    private readonly AppDbContext _context;
 
-    public QuizController(QuizService quizService, ProfileService profileService)
+    public QuizController(QuizService quizService, ProfileService profileService, AppDbContext context)
     {
         _quizService = quizService;
         _profileService = profileService;
+        _context = context;
     }
 
     private int ResolveUserId()
@@ -96,7 +100,21 @@ public class QuizController : ControllerBase
         int userId = ResolveUserId();
         if (userId == 0) return Unauthorized();
 
-        var quizzes = await _quizService.GetQuizzesForUserAsync(userId);
+        List<Quiz> quizzes;
+        if (User.IsInRole("Administrator"))
+        {
+            quizzes = await _quizService.GetAllQuizzesAsync();
+        }
+        else
+        {
+            var stats = await _context.UserActivityStats
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+            var canCreateGlobalQuizzes = (stats?.AttractionsCreated ?? 0) >= 5;
+
+            quizzes = canCreateGlobalQuizzes
+                ? await _quizService.GetAllQuizzesAsync()
+                : await _quizService.GetQuizzesForUserAsync(userId);
+        }
         var result = quizzes.Select(q => new
         {
             q.Id,

@@ -275,6 +275,7 @@ public static partial class DataSeeder
         {
             context.Badges.AddRange(new List<Badge>
             {
+                // Utilizatori regulari
                 new Badge
                 {
                     Name = "Prima Stea",
@@ -298,6 +299,216 @@ public static partial class DataSeeder
                     IconUrl = "🏆",
                     RequiredPoints = 500,
                     Criteria = "{\"totalPoints\": 500}"
+                },
+                new Badge
+                {
+                    Name = "Sclav de Quiz",
+                    Description = "Completează 10 quiz-uri",
+                    IconUrl = "🎓",
+                    RequiredPoints = 0,
+                    Criteria = "{\"quizzesCompleted\": 10}"
+                },
+                new Badge
+                {
+                    Name = "Geniu Turistic",
+                    Description = "Completează 25 quiz-uri",
+                    IconUrl = "🧠",
+                    RequiredPoints = 0,
+                    Criteria = "{\"quizzesCompleted\": 25}"
+                },
+                new Badge
+                {
+                    Name = "Guru al Știrii",
+                    Description = "Acumulează 1000 de puncte",
+                    IconUrl = "📖",
+                    RequiredPoints = 1000,
+                    Criteria = "{\"totalPoints\": 1000}"
+                },
+                new Badge
+                {
+                    Name = "Legendă Călătorie",
+                    Description = "Acumulează 2500 de puncte",
+                    IconUrl = "👑",
+                    RequiredPoints = 2500,
+                    Criteria = "{\"totalPoints\": 2500}"
+                },
+                new Badge
+                {
+                    Name = "Vânător de Atracții",
+                    Description = "Vizitează 10 locuri diferite",
+                    IconUrl = "🔍",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsVisited\": 10}"
+                },
+                new Badge
+                {
+                    Name = "Colecționar Înrait",
+                    Description = "Salvează 5 atracții la favorite",
+                    IconUrl = "❤️",
+                    RequiredPoints = 0,
+                    Criteria = "{\"favoritesSaved\": 5}"
+                },
+                new Badge
+                {
+                    Name = "Social Butterfly",
+                    Description = "Adaugă 3 prieteni",
+                    IconUrl = "🦋",
+                    RequiredPoints = 0,
+                    Criteria = "{\"friendsAdded\": 3}"
+                },
+                new Badge
+                {
+                    Name = "Ambasador Rovia",
+                    Description = "Invită 5 prieteni",
+                    IconUrl = "📢",
+                    RequiredPoints = 0,
+                    Criteria = "{\"friendsInvited\": 5}"
+                },
+                new Badge
+                {
+                    Name = "Maestru al Provocărilor",
+                    Description = "Completează 10 provocări",
+                    IconUrl = "⚡",
+                    RequiredPoints = 0,
+                    Criteria = "{\"challengesCompleted\": 10}"
+                },
+                
+                // Promoter milestones
+                new Badge
+                {
+                    Name = "Promoter Debut",
+                    Description = "Prima atracție aprobată",
+                    IconUrl = "🎯",
+                    RequiredPoints = 0,
+                    Criteria = "{\"approvedSuggestions\": 1, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Contributor Activ",
+                    Description = "5 atracții aprobate",
+                    IconUrl = "📍",
+                    RequiredPoints = 0,
+                    Criteria = "{\"approvedSuggestions\": 5, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Expert Regional",
+                    Description = "10 atracții aprobate",
+                    IconUrl = "🌟",
+                    RequiredPoints = 0,
+                    Criteria = "{\"approvedSuggestions\": 10, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Istoric Turistic",
+                    Description = "25 atracții aprobate",
+                    IconUrl = "📚",
+                    RequiredPoints = 0,
+                    Criteria = "{\"approvedSuggestions\": 25, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Legendă Culturală",
+                    Description = "50 atracții aprobate",
+                    IconUrl = "👑",
+                    RequiredPoints = 0,
+                    Criteria = "{\"approvedSuggestions\": 50, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Maestru al Turismului",
+                    Description = "100+ atracții aprobate",
+                    IconUrl = "💎",
+                    RequiredPoints = 0,
+                    Criteria = "{\"approvedSuggestions\": 100, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Constructor de Atracții",
+                    Description = "Adaugă 1 atracție nouă",
+                    IconUrl = "🧱",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsCreated\": 1, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Permisiune quiz global",
+                    Description = "5 atracții adăugate – poți crea quiz-uri oriunde",
+                    IconUrl = "🏗️",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsCreated\": 5, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Cercetaș de încredere",
+                    Description = "20 atracții adăugate – poți adăuga fără aprobare",
+                    IconUrl = "🧭",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsCreated\": 20, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Restaurator",
+                    Description = "Actualizează 5 atracții",
+                    IconUrl = "🛠️",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsUpdated\": 5, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Creator de Quiz",
+                    Description = "Creează 3 quiz-uri",
+                    IconUrl = "📝",
+                    RequiredPoints = 0,
+                    Criteria = "{\"quizzesCreated\": 3, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Editor de Quiz",
+                    Description = "Editează 5 quiz-uri",
+                    IconUrl = "✏️",
+                    RequiredPoints = 0,
+                    Criteria = "{\"quizzesUpdated\": 5, \"type\": \"promoter\"}"
+                },
+                new Badge
+                {
+                    Name = "Curator Admin",
+                    Description = "Adaugă 3 atracții (admin)",
+                    IconUrl = "🧭",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsCreated\": 3, \"type\": \"admin\"}"
+                },
+                new Badge
+                {
+                    Name = "Revizor Admin",
+                    Description = "Actualizează 5 atracții (admin)",
+                    IconUrl = "🔧",
+                    RequiredPoints = 0,
+                    Criteria = "{\"attractionsUpdated\": 5, \"type\": \"admin\"}"
+                },
+                new Badge
+                {
+                    Name = "Arhitect Quiz",
+                    Description = "Creează 5 quiz-uri (admin)",
+                    IconUrl = "📐",
+                    RequiredPoints = 0,
+                    Criteria = "{\"quizzesCreated\": 5, \"type\": \"admin\"}"
+                },
+                new Badge
+                {
+                    Name = "Controlor Quiz",
+                    Description = "Editează 10 quiz-uri (admin)",
+                    IconUrl = "🛡️",
+                    RequiredPoints = 0,
+                    Criteria = "{\"quizzesUpdated\": 10, \"type\": \"admin\"}"
+                },
+                new Badge
+                {
+                    Name = "Top Contribuitor",
+                    Description = "Cel mai activ promoter al lunii",
+                    IconUrl = "🥇",
+                    RequiredPoints = 0,
+                    Criteria = "{\"topContributor\": true, \"type\": \"promoter\"}"
                 }
             });
 

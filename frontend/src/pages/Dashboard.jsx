@@ -1,14 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import useAuth from '../hooks/useAuth';
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const auth = useAuth();
   const [profile, setProfile] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [userRankEntry, setUserRankEntry] = useState(null);
+  const [badgeProgress, setBadgeProgress] = useState(null);
+  const [showAllBadges, setShowAllBadges] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -18,6 +21,8 @@ export default function Dashboard() {
   const [friendQuery, setFriendQuery] = useState('');
   const [friendSearchResults, setFriendSearchResults] = useState([]);
   const [friendsStatus, setFriendsStatus] = useState(null);
+  const [inviteCode, setInviteCode] = useState('');
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   const initialTab = useMemo(() => {
     return searchParams.get('tab') === 'account' ? 'account' : 'overview';
@@ -28,6 +33,7 @@ export default function Dashboard() {
     fetchDashboardData();
     fetchFriends();
     fetchFriendRequests();
+    fetchInviteCode();
   }, []);
 
   useEffect(() => {
@@ -37,16 +43,18 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [profileRes, leaderboardRes, rankRes] = await Promise.all([
+      const [profileRes, leaderboardRes, rankRes, badgeRes] = await Promise.all([
         api.get('/profile/me'),
         api.get('/profile/leaderboard?take=3'),
-        api.get('/profile/leaderboard/me')
+        api.get('/profile/leaderboard/me'),
+        api.get('/profile/me/badge-progress').catch(() => ({ data: null }))
       ]);
 
       setProfile(profileRes.data);
       setFormData(profileRes.data || {});
       setLeaderboard(leaderboardRes.data || []);
       setUserRankEntry(rankRes.data || null);
+      setBadgeProgress(badgeRes?.data || null);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       // Don't block UI on error, just show empty state
@@ -163,11 +171,41 @@ export default function Dashboard() {
     }
   };
 
+  const fetchInviteCode = async () => {
+    try {
+      const res = await api.get('/profile/me/invite-code');
+      setInviteCode(res.data.inviteCode || '');
+    } catch (err) {
+      console.error('Failed to fetch invite code:', err);
+    }
+  };
+
+  const copyInviteLink = async () => {
+    const link = `${window.location.origin}/register?invite=${inviteCode}`;
+    navigator.clipboard.writeText(link);
+    setCopiedInvite(true);
+    
+    // Track invite challenge
+    try {
+      await api.post('/challenges/track-invite');
+      console.log('✓ Challenge tracked');
+    } catch (err) {
+      console.error('Error tracking invite challenge:', err);
+    }
+    
+    setTimeout(() => setCopiedInvite(false), 2000);
+  };
+
   if (loading) return (
     <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text)' }}>
       <h2>Se încarcă profilul...</h2>
     </div>
   );
+
+  const badgeList = badgeProgress?.Badges || [];
+  const unlockedBadges = badgeList.filter(badge => badge.IsUnlocked);
+  const roleName = (profile?.Role || auth.role || '').toString().toLowerCase();
+  const showActivityPoints = roleName === 'promoter' || roleName === 'administrator';
 
   return (
     <div className="page-container" style={{
@@ -270,6 +308,17 @@ export default function Dashboard() {
                 <p style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{profile?.QuizzesCompleted ?? '-'}</p>
                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>Teste finalizate</p>
               </div>
+
+              {showActivityPoints && (
+                <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🏛️</div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Puncte activitate</h3>
+                  </div>
+                  <p style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{profile?.ActivityPoints ?? 0}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>Contribuții turistice</p>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
@@ -326,15 +375,15 @@ export default function Dashboard() {
               <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
                 <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Insigne</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '28px', fontWeight: '800' }}>{(profile?.badges || profile?.Badges || []).length}</div>
+                  <div style={{ fontSize: '28px', fontWeight: '800' }}>{badgeProgress?.UnlockedCount ?? unlockedBadges.length ?? (profile?.badges || profile?.Badges || []).length}</div>
                   <div style={{ color: 'var(--muted)', fontSize: '13px' }}>insigne deblocate</div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                  {(profile?.badges || profile?.Badges || []).slice(0, 6).map((badge, idx) => (
+                  {(unlockedBadges.length ? unlockedBadges : (profile?.badges || profile?.Badges || [])).slice(0, 6).map((badge, idx) => (
                     <div
                       key={badge.id || badge.Id || idx}
-                      title={badge.name || badge.Name}
+                      title={`${badge.name || badge.Name}${badge.description || badge.Description ? ` — ${badge.description || badge.Description}` : ''}`}
                       style={{
                         width: '40px',
                         height: '40px',
@@ -350,34 +399,88 @@ export default function Dashboard() {
                       {badge.iconUrl || badge.IconUrl || '🏅'}
                     </div>
                   ))}
-                  {(profile?.badges || profile?.Badges || []).length === 0 && (
+                  {(unlockedBadges.length === 0 && (profile?.badges || profile?.Badges || []).length === 0) && (
                     <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Încă nu ai insigne.</div>
                   )}
                 </div>
 
-                <div style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'rgba(16, 185, 129, 0.08)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Următoarea insignă</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '16px'
-                    }}>
-                      {(profile?.nextBadge || profile?.NextBadge)?.iconUrl || (profile?.nextBadge || profile?.NextBadge)?.IconUrl || '🏅'}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '700' }}>{(profile?.nextBadge || profile?.NextBadge)?.name || (profile?.nextBadge || profile?.NextBadge)?.Name || 'Țintă nouă'}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        {(profile?.nextBadge || profile?.NextBadge)?.pointsRemaining ?? (profile?.nextBadge || profile?.NextBadge)?.PointsRemaining ?? 0} XP rămas
+                <button
+                  onClick={() => setShowAllBadges(prev => !prev)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    color: 'var(--accent)',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {showAllBadges ? 'Ascunde toate insignele' : 'Vezi toate insignele'}
+                </button>
+
+                {showAllBadges && (
+                  <div style={{ marginTop: '16px', display: 'grid', gap: '12px' }}>
+                    {badgeList.map((badge) => (
+                      <div key={badge.Id} style={{
+                        padding: '12px',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        background: badge.IsUnlocked ? 'rgba(16, 185, 129, 0.08)' : 'rgba(99, 102, 241, 0.05)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ fontSize: '20px' }}>{badge.IconUrl}</div>
+                            <div>
+                              <div style={{ fontWeight: '700' }}>{badge.Name}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{badge.Description}</div>
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: badge.IsUnlocked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.12)',
+                            color: badge.IsUnlocked ? 'var(--success)' : 'var(--accent)',
+                            fontWeight: '700'
+                          }}>
+                            {badge.IsUnlocked ? 'Deblocat' : 'În progres'}
+                          </div>
+                        </div>
+                        <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+                          Necesare: {badge.RequiredProgress} {badge.ProgressLabel || ''} · Ai: {badge.CurrentProgress}
+                        </div>
+                        {!badge.IsUnlocked && badge.RemainingToUnlock > 0 && (
+                          <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--muted)' }}>
+                            Îți mai lipsesc: {badge.RemainingToUnlock} {badge.ProgressLabel || ''}
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    ))}
                   </div>
+                )}
+              </div>
+
+              {/* NEWS & RECOMMENDATIONS CTA */}
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '12px' }}>Noutăți & recomandări</h2>
+                <div style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '16px' }}>
+                  Vezi cele mai noi atracții și recomandări turistice.
                 </div>
+                <button
+                  onClick={() => navigate('/recommendations')}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: 'white',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Deschide recomandările
+                </button>
               </div>
 
             </div>
@@ -515,7 +618,55 @@ export default function Dashboard() {
               </button>
             )}
             </div>
+            {/* INVITE FRIENDS SECTION */}
+            <div style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>🎁 Invită prieteni</h2>
+              
+              <p style={{ color: 'var(--muted)', marginBottom: '16px', fontSize: '14px' }}>
+                Trimite linkul tău de invitație prietenilor. Când se înregistrează, primești puncte la provocările "Invită prieteni"!
+              </p>
 
+              {inviteCode && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/register?invite=${inviteCode}`}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--input-bg)',
+                      color: 'var(--text)',
+                      fontSize: '14px',
+                      fontFamily: 'monospace'
+                    }}
+                  />
+                  <button
+                    onClick={copyInviteLink}
+                    style={{
+                      padding: '12px 24px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: copiedInvite ? 'var(--success)' : 'var(--accent)',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {copiedInvite ? '✓ Copiat!' : '📋 Copiază'}
+                  </button>
+                </div>
+              )}
+            </div>
             <div style={{
               background: 'var(--card-bg)',
               border: '1px solid var(--border)',
