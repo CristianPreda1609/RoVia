@@ -28,7 +28,7 @@ export default function Leaderboard() {
   const [sortBy, setSortBy] = useState('totalPoints');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [challengeTab, setChallengeTab] = useState('daily');
   const [challenges, setChallenges] = useState({ Daily: [], Weekly: [] });
@@ -268,7 +268,7 @@ export default function Leaderboard() {
           )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', gap: '16px', alignItems: 'flex-start' }}>
             <div style={{
               display: 'flex',
               gap: '8px',
@@ -276,7 +276,8 @@ export default function Leaderboard() {
               background: 'var(--card-bg)',
               border: '1px solid var(--border)',
               borderRadius: '12px',
-              padding: '10px 12px'
+              padding: '10px 12px',
+              alignSelf: 'flex-start'
             }}>
               <label style={{ fontSize: '12px', color: 'var(--muted)' }}>Sortare</label>
               <select
@@ -302,8 +303,6 @@ export default function Leaderboard() {
                 style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               >
                 <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
               </select>
             </div>
             <div style={{
@@ -313,7 +312,8 @@ export default function Leaderboard() {
               border: '1px solid var(--border)',
               background: 'var(--card-bg)',
               padding: '18px 20px',
-              boxShadow: 'var(--shadow-sm)'
+              boxShadow: 'var(--shadow-sm)',
+              alignSelf: 'flex-start'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                 <div style={{ fontWeight: 700, fontSize: '16px' }}>🎯 Provocări active</div>

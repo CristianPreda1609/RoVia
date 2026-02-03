@@ -43,7 +43,7 @@ export default function PromoterPortal() {
   const [formData, setFormData] = useState({
     name: '',
     type: 'Naturală',
-    region: 'București',
+    region: 'Muntenia',
     description: '',
     latitude: '',
     longitude: '',
@@ -173,7 +173,7 @@ export default function PromoterPortal() {
     try {
       await api.post('/promoter/suggestions', payload);
       setStatus({ type: 'success', message: '✅ Propunere de atracție trimisă spre aprobare!' });
-      setFormData({ name: '', type: 'Naturală', region: 'București', description: '', latitude: '', longitude: '', imageUrl: '' });
+      setFormData({ name: '', type: 'Naturală', region: 'Muntenia', description: '', latitude: '', longitude: '', imageUrl: '' });
       fetchPromoterData();
     } catch (err) {
       console.error(err);
@@ -586,7 +586,7 @@ export default function PromoterPortal() {
                         <div>
                           <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Regiune</label>
                           <select value={editFormData.region} onChange={(e) => setEditFormData({ ...editFormData, region: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', marginTop: '4px' }}>
-                            {['București', 'Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Oltenia', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
+                            {['Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
                         </div>
                         <div>
@@ -626,7 +626,7 @@ export default function PromoterPortal() {
                       <p style={{ margin: '0 0 16px 0', color: 'var(--muted)' }}>{attr.region}</p>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button onClick={() => handleEditAttraction(attr)} style={{ flex: 1, padding: '8px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>✏️ Editează</button>
-                        <button style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>📊 Detalii</button>
+                        <button onClick={() => navigate(`/attractions/${attr.id}`)} style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>📊 Detalii</button>
                       </div>
                     </div>
                   )
@@ -655,7 +655,7 @@ export default function PromoterPortal() {
               <div>
                 <label style={{ fontSize: '14px', fontWeight: '600' }}>Regiune</label>
                 <select value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', marginTop: '4px' }}>
-                  {['București', 'Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Oltenia', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
+                  {['Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div>

@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import api from '../services/api';
 
 function TopBar({ onMenuToggle, sidebarWidth = 72 }) {
 	const navigate = useNavigate();
@@ -15,6 +16,10 @@ function TopBar({ onMenuToggle, sidebarWidth = 72 }) {
 			return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 		} catch { return false; }
 	});
+	const [favoritesOpen, setFavoritesOpen] = useState(false);
+	const [favoritesLoading, setFavoritesLoading] = useState(false);
+	const [favoritesError, setFavoritesError] = useState('');
+	const [favorites, setFavorites] = useState([]);
 
 	useEffect(() => {
 		const root = document.documentElement;
@@ -26,11 +31,44 @@ function TopBar({ onMenuToggle, sidebarWidth = 72 }) {
 		localStorage.setItem('theme', dark ? 'dark' : 'light');
 	}, [dark]);
 
+	useEffect(() => {
+		if (!favoritesOpen) return;
+		const loadFavorites = async () => {
+			if (!auth?.isAuthenticated) {
+				setFavorites([]);
+				setFavoritesError('Trebuie să fii autentificat pentru a vedea favoritele.');
+				return;
+			}
+			setFavoritesLoading(true);
+			setFavoritesError('');
+			try {
+				const { data } = await api.get('/favorites');
+				const ids = Array.isArray(data) ? data : [];
+				if (ids.length === 0) {
+					setFavorites([]);
+					return;
+				}
+				const detailResults = await Promise.all(
+					ids.map((id) => api.get(`/attractions/${id}`).then((res) => res.data).catch(() => null))
+				);
+				setFavorites(detailResults.filter(Boolean));
+			} catch (err) {
+				console.error('Failed to load favorites', err);
+				setFavoritesError('Nu am putut încărca favoritele.');
+				setFavorites([]);
+			} finally {
+				setFavoritesLoading(false);
+			}
+		};
+		loadFavorites();
+	}, [favoritesOpen, auth?.isAuthenticated]);
+
 	const toggleDarkMode = () => {
 		setDark(prevDark => !prevDark);
 	};
 
 	return (
+		<>
 		<div style={{
 			position: 'fixed',
 			top: 0,
@@ -79,8 +117,8 @@ function TopBar({ onMenuToggle, sidebarWidth = 72 }) {
 				</h1>
 			</div>
 
-			{/* Right: Dark mode toggle + User */}
-			<div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+			{/* Right: Dark mode toggle + Favorites + User */}
+			<div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
 				{/* Dark mode toggle switch - Modern iOS Style */}
 				<button
 					onClick={toggleDarkMode}
@@ -164,6 +202,48 @@ function TopBar({ onMenuToggle, sidebarWidth = 72 }) {
 					</div>
 				</button>
 
+				<button
+					onClick={() => window.open('/prezentare.html', '_blank')}
+					aria-label="Prezentare"
+					title="Prezentare Proiect"
+					style={{
+						padding: '8px 12px',
+						borderRadius: 10,
+						border: '1px solid var(--border)',
+						background: 'var(--card-bg)',
+						color: 'var(--text)',
+						cursor: 'pointer',
+						display: 'flex',
+						alignItems: 'center',
+						gap: '8px',
+						fontWeight: 600
+					}}
+				>
+					<span style={{ fontSize: '16px' }}>📖</span>
+					<span style={{ fontSize: '12px' }}>Prezentare</span>
+				</button>
+
+				<button
+					onClick={() => setFavoritesOpen(true)}
+					aria-label="Favorite"
+					title="Favorite"
+					style={{
+						padding: '8px 12px',
+						borderRadius: 10,
+						border: '1px solid var(--border)',
+						background: 'var(--card-bg)',
+						color: 'var(--text)',
+						cursor: 'pointer',
+						display: 'flex',
+						alignItems: 'center',
+						gap: '8px',
+						fontWeight: 600
+					}}
+				>
+					<span style={{ fontSize: '16px' }}>❤️</span>
+					<span style={{ fontSize: '12px' }}>Favorite</span>
+				</button>
+
 				{/* User info - click pentru profil */}
 				{auth.isAuthenticated ? (
 					<div 
@@ -229,6 +309,110 @@ function TopBar({ onMenuToggle, sidebarWidth = 72 }) {
 				)}
 			</div>
 		</div>
+
+		{favoritesOpen && (
+			<div
+				style={{
+					position: 'fixed',
+					inset: 0,
+					background: 'rgba(0,0,0,0.35)',
+					zIndex: 65
+				}}
+				onClick={() => setFavoritesOpen(false)}
+			/>
+		)}
+
+		<div
+			style={{
+				position: 'fixed',
+				top: 0,
+				right: 0,
+				height: '100vh',
+				width: 'min(360px, 92vw)',
+				background: 'var(--card-bg)',
+				borderLeft: '1px solid var(--border)',
+				boxShadow: 'var(--shadow-lg)',
+				transform: favoritesOpen ? 'translateX(0)' : 'translateX(100%)',
+				transition: 'transform 220ms ease',
+				zIndex: 70,
+				padding: '18px 16px',
+				display: 'flex',
+				flexDirection: 'column',
+				gap: '12px'
+			}}
+		>
+			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+				<div style={{ fontWeight: 700, fontSize: '16px' }}>❤️ Favorite</div>
+				<button
+					onClick={() => setFavoritesOpen(false)}
+					aria-label="Închide favorite"
+					style={{
+						width: 32,
+						height: 32,
+						borderRadius: 8,
+						border: '1px solid var(--border)',
+						background: 'var(--bg)',
+						cursor: 'pointer'
+					}}
+				>
+					✕
+				</button>
+			</div>
+
+			{favoritesLoading && (
+				<div style={{ color: 'var(--muted)', fontSize: '13px' }}>Se încarcă favoritele...</div>
+			)}
+			{favoritesError && (
+				<div style={{ color: 'var(--error)', fontSize: '13px' }}>{favoritesError}</div>
+			)}
+			{!favoritesLoading && !favoritesError && favorites.length === 0 && (
+				<div style={{ color: 'var(--muted)', fontSize: '13px' }}>Nu ai favorite încă.</div>
+			)}
+
+			<div style={{ display: 'grid', gap: '10px', overflowY: 'auto', paddingRight: '4px' }}>
+				{favorites.map((fav) => (
+					<div
+						key={fav.id}
+						style={{
+							display: 'flex',
+							gap: '10px',
+							alignItems: 'center',
+							padding: '10px',
+							borderRadius: '12px',
+							border: '1px solid var(--border)',
+							cursor: 'pointer'
+						}}
+						onClick={() => {
+							setFavoritesOpen(false);
+							navigate(`/attractions/${fav.id}`);
+						}}
+					>
+						<div
+							style={{
+								width: 52,
+								height: 52,
+								borderRadius: 10,
+								overflow: 'hidden',
+								background: 'var(--bg)',
+								border: '1px solid var(--border)',
+								flexShrink: 0
+							}}
+						>
+							{fav.imageUrl ? (
+								<img src={fav.imageUrl} alt={fav.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+							) : (
+								<div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: '20px' }}>📍</div>
+							)}
+						</div>
+						<div style={{ minWidth: 0 }}>
+							<div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>{fav.name}</div>
+							<div style={{ fontSize: '12px', color: 'var(--muted)' }}>{fav.region || 'România'}</div>
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+		</>
 	);
 }
 
