@@ -306,23 +306,45 @@ export default function VoucherStore() {
                       {voucher.Category || 'General'}
                     </span>
 
-                    {/* Image */}
+                    {/* Visual Header */}
                     <div style={{
                       width: '100%',
                       height: '160px',
-                      background: 'linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%)',
+                      background: voucher.Category === 'Cazare' 
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : voucher.Category === 'Restaurant'
+                        ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+                        : voucher.Category === 'Tur'
+                        ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+                        : 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
                       borderRadius: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '48px',
-                      marginBottom: '16px'
+                      fontSize: '64px',
+                      marginBottom: '16px',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+                      position: 'relative',
+                      overflow: 'hidden'
                     }}>
-                      {voucher.ImageUrl ? (
-                        <img src={voucher.ImageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} alt="" />
-                      ) : (
-                        '🎫'
-                      )}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'radial-gradient(circle at 30% 50%, rgba(255,255,255,0.2) 0%, transparent 50%)',
+                        pointerEvents: 'none'
+                      }} />
+                      <span style={{ position: 'relative', zIndex: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
+                        {voucher.Category === 'Cazare' 
+                          ? '🏨'
+                          : voucher.Category === 'Restaurant'
+                          ? '🍽️'
+                          : voucher.Category === 'Tur'
+                          ? '🗺️'
+                          : '🎁'}
+                      </span>
                     </div>
 
                     <h3 style={{

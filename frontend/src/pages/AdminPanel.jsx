@@ -22,7 +22,7 @@ export default function AdminPanel() {
   const [attractionForm, setAttractionForm] = useState({
     name: '',
     description: '',
-    region: 'București',
+    region: 'Muntenia',
     type: 0,
     latitude: 0,
     longitude: 0,
@@ -112,7 +112,24 @@ export default function AdminPanel() {
       setStatus({ type: 'error', message: '❌ Eroare' });
     }
   };
-
+  const handleFixMonthlyPoints = async () => {
+    try {
+      setStatus({ type: 'info', message: '⏳ Se repară punctajele lunare...' });
+      const { data } = await api.post('/admin/fix-monthly-points');
+      setStatus({ type: 'success', message: `✅ ${data.message}` });
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Eroare la repararea punctajelor' });
+    }
+  };
+  const handleRegenerateChallenges = async () => {
+    try {
+      setStatus({ type: 'info', message: '⏳ Se regenerează provocările...' });
+      const { data } = await api.post('/challenges/regenerate');
+      setStatus({ type: 'success', message: `✅ ${data.message || 'Provocări regenerate cu succes!'}` });
+    } catch (err) {
+      setStatus({ type: 'error', message: '❌ Eroare la regenerarea provocărilor' });
+    }
+  };
   const handleSaveAttraction = async () => {
     try {
       if (editingAttractionId) {
@@ -125,7 +142,7 @@ export default function AdminPanel() {
         setStatus({ type: 'success', message: '✅ Atracție creată!' });
       }
       setEditingAttractionId(null);
-      setAttractionForm({ name: '', description: '', region: 'București', type: 0, latitude: 0, longitude: 0, imageUrl: '', rating: 0 });
+      setAttractionForm({ name: '', description: '', region: 'Muntenia', type: 0, latitude: 0, longitude: 0, imageUrl: '', rating: 0 });
       fetchAdminData();
     } catch (err) {
       setStatus({ type: 'error', message: '❌ ' + (err.response?.data?.message || 'Eroare') });
@@ -338,8 +355,47 @@ export default function AdminPanel() {
         {/* DASHBOARD CONTENT */}
         {activeTab === 'dashboard' && (
           <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '24px' }}>
-            <h2 style={{ margin: 0, marginBottom: '16px' }}>Pregled Sistem</h2>
-            <p style={{ color: 'var(--muted)', marginBottom: '24px' }}>Selectează o secțiune din meniu pentru a gestiona conținutul platformei.</p>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: '20px' }}>🛠️ Instrumente de Administrare</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                onClick={handleFixMonthlyPoints}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'var(--accent)',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  textAlign: 'left'
+                }}
+              >
+                🔧 Repară Punctajele Lunare Negative
+              </button>
+              <p style={{ margin: '0', fontSize: '13px', color: 'var(--muted)' }}>
+                Setează toate punctajele lunare negative la 0 în baza de date
+              </p>
+              <button
+                onClick={handleRegenerateChallenges}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'var(--secondary)',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  textAlign: 'left'
+                }}
+              >
+                🔁 Resetează Provocările Zilnice/Săptămânale
+              </button>
+              <p style={{ margin: '0', fontSize: '13px', color: 'var(--muted)' }}>
+                Șterge provocările active și generează unele noi pentru toți utilizatorii
+              </p>
+            </div>
           </div>
         )}
 
@@ -435,7 +491,7 @@ export default function AdminPanel() {
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--muted)' }}>Regiune</label>
                   <select value={attractionForm.region} onChange={(e) => setAttractionForm({...attractionForm, region: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
-                    {['București', 'Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Oltenia', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
+                    {['Muntenia', 'Moldova', 'Transilvania', 'Dobrogea', 'Banat', 'Maramureș'].map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
                 <div>

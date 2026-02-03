@@ -321,9 +321,9 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', alignItems: 'start' }}>
               {/* RECENT QUIZZES */}
-              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', alignSelf: 'start' }}>
                 <h2 style={{ fontSize: '20px', marginBottom: '20px' }}>Ultimele quiz-uri</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {(profile?.RecentProgress || []).slice(0, 6).map((item, idx) => (
@@ -346,7 +346,7 @@ export default function Dashboard() {
               </div>
 
               {/* LEADERBOARD MINI */}
-              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', alignSelf: 'start' }}>
                 <h2 style={{ fontSize: '20px', marginBottom: '20px' }}>Top Exploratori</h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   {leaderboard.map((user, idx) => (
@@ -372,7 +372,7 @@ export default function Dashboard() {
               </div>
 
               {/* BADGES */}
-              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <div style={{ background: 'var(--card-bg)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', alignSelf: 'start' }}>
                 <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Insigne</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '28px', fontWeight: '800' }}>{badgeProgress?.UnlockedCount ?? unlockedBadges.length ?? (profile?.badges || profile?.Badges || []).length}</div>
